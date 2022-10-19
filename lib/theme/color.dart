@@ -21,4 +21,10 @@ var purpleSolid = getColorFromHex("#4E0189");
 
 const white = Colors.white;
 
+var grey_100 = Colors.grey[100];
+
+const grey = Colors.grey;
+
+const green = Colors.green;
+
 

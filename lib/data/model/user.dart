@@ -5,34 +5,45 @@ part 'user.g.dart';
 @HiveType(typeId: 0)
 class UserModel extends HiveObject{
   @HiveField(0)
-  String? id;
+  String? _id;
   @HiveField(1)
-  String? fullName;
+  String? _fullName;
   @HiveField(2)
-  String? avatarURL;
+  String? _avatarURL;
   @HiveField(3)
-  String? email;
+  String? _email;
   @HiveField(4)
-  bool? isOnline;
+  bool? _isOnline;
 
   UserModel(
-      {this.id, this.fullName, this.avatarURL, this.email, this.isOnline});
+      [this._id, this._fullName, this._avatarURL, this._email, this._isOnline]);
 
   UserModel.fromJson(Map<dynamic, dynamic> json) {
-    id = json['id'];
-    fullName = json['fullName'];
-    avatarURL = json['avatarURL'];
-    email = json['email'];
-    isOnline = json['is_online'];
+    _id = json['id'];
+    _fullName = json['fullName'];
+    _avatarURL = json['avatarURL'];
+    _email = json['email'];
+    _isOnline = json['is_online'];
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['id'] = this.id;
-    data['fullName'] = this.fullName;
-    data['avatarURL'] = this.avatarURL;
-    data['email'] = this.email;
-    data['is_online'] = this.isOnline;
+    data['_id'] = this._id;
+    data['_fullName'] = this._fullName;
+    data['_avatarURL'] = this._avatarURL;
+    data['_email'] = this._email;
+    data['_is_online'] = this._isOnline;
     return data;
   }
+
+
+  bool get isOnline => _isOnline ?? false;
+
+  String get email => _email ?? "";
+
+  String get avatarURL => _avatarURL ?? "";
+
+  String get fullName => _fullName ?? "Anonymus";
+
+  String get id => _id ?? "";
 }
