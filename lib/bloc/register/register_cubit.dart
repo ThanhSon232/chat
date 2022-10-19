@@ -85,7 +85,7 @@ class RegisterCubit extends Cubit<RegisterState> {
               email: emailController.text, password: passwordController.text)
           .then((value) {
         //if create successfully
-        firestoreInstance.collection("users").add({
+        firestoreInstance.collection("users").doc(value.user?.uid).set({
           "id": value.user?.uid,
           "fullName": nameController.text,
           "avatarURL": "",
