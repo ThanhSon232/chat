@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat/bloc/message/message_cubit.dart';
+import 'package:chat/screens/chat/chat_screen.dart';
 import 'package:chat/theme/color.dart';
 import 'package:chat/theme/dimension.dart';
 import 'package:chat/theme/style.dart';
@@ -9,6 +11,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:skeletons/skeletons.dart';
+
+import '../../route.gr.dart';
 
 class MessagePage extends StatefulWidget implements AutoRouteWrapper {
   const MessagePage({Key? key}) : super(key: key);
@@ -42,50 +47,57 @@ class _MessagePageState extends State<MessagePage> {
       height: size_20_h,
     );
 
-    return BlocConsumer<MessageCubit, MessageState>(
-      listener: (context, state) {
-        // TODO: implement listener
-      },
-      builder: (context, state) {
-        return Scaffold(
-          appBar: AppBar(
-            backgroundColor: white,
-            title: Text(
-              "Messages",
-              style: header.copyWith(fontWeight: FontWeight.w500),
-            ),
-            centerTitle: false,
-            elevation: 0,
-            actions: [
-              if (state is MessageLoading) const CircularProgressIndicator(),
-              if (state is MessageLoaded)
-                cubit.currentUser.avatarURL.isEmpty
-                    ? CircleAvatar(
-                        child: Text(cubit.currentUser.fullName[0]),
-                      )
-                    : CircleAvatar(
-                        backgroundImage:
-                            NetworkImage(cubit.currentUser.avatarURL),
-                      )
-            ],
-          ),
-          backgroundColor: white,
-          body: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-                horizontal: size_15_w, vertical: size_10_h),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                searchBar(),
-                spacing,
-                if (state is MessageLoaded) onlineUserList(),
-                if (state is MessageLoaded) messageList()
-              ],
-            ),
-          ),
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: white,
+        title: Text(
+          "Messages",
+          style: header.copyWith(fontWeight: FontWeight.w500),
+        ),
+        centerTitle: false,
+        elevation: 0,
+        actions: [
+          BlocBuilder<MessageCubit, MessageState>(
+            buildWhen: (prev, cur) => prev != cur && cur is MessageInitial,
+            builder: (context, state) {
+              if (state is MessageLoading) {
+                return const SkeletonAvatar(
+                  style: SkeletonAvatarStyle(
+                      shape: BoxShape.circle, width: 30, height: 30),
+                );
+              }
+              return CachedNetworkImage(
+                imageUrl: cubit.currentUser.avatarURL,
+                cacheKey: cubit.currentUser.avatarURL,
+                errorWidget: (
+                  BuildContext context,
+                  String url,
+                  dynamic error,
+                ) {
+                  return CircleAvatar(
+                    child: Text(cubit.currentUser.fullName[0]),
+                  );
+                },
+                imageBuilder: (context, imageProvider) {
+                  return CircleAvatar(
+                    backgroundImage: imageProvider,
+                  );
+                },
+              );
+            },
+          )
+        ],
+      ),
+      backgroundColor: white,
+      body: SingleChildScrollView(
+        padding:
+            EdgeInsets.symmetric(horizontal: size_15_w, vertical: size_10_h),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [searchBar(), spacing, onlineUserList()],
+        ),
+      ),
     );
   }
 
@@ -109,20 +121,38 @@ class _MessagePageState extends State<MessagePage> {
   }
 
   Widget onlineUserList() {
-    return SizedBox(
-      height: size_130_h,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) {
-          return CustomCircleAvatar(user: cubit.currentUser);
-        },
-        itemCount: 10,
-        separatorBuilder: (BuildContext context, int index) {
-          return SizedBox(
-            width: size_20_w,
-          );
-        },
-      ),
+    return BlocConsumer<MessageCubit, MessageState>(
+      listener: (context, state) {
+        if (state is MessageOnlineUserLoaded) {
+          cubit.userList = state.userList;
+        }
+      },
+      buildWhen: (prev, cur) => prev != cur && cur is MessageOnlineUserLoaded,
+      builder: (context, state) {
+        if (state is MessageOnlineUserLoading) {
+          return const CircularProgressIndicator();
+        }
+        return SizedBox(
+          height: size_130_h,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                  onTap: () {
+                    context.router.push(
+                        ChatScreenRoute(userModel: cubit.userList[index]));
+                  },
+                  child: CustomCircleAvatar(user: cubit.userList[index]));
+            },
+            itemCount: cubit.userList.length,
+            separatorBuilder: (BuildContext context, int index) {
+              return SizedBox(
+                width: size_20_w,
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
