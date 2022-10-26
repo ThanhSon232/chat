@@ -24,8 +24,8 @@ class CustomCircleAvatarStatus extends StatelessWidget {
       ),
       if (user.isOnline)
         Positioned.fill(
-          top: size_50_h,
-          left: size_45_w,
+          top: size_30_h,
+          left: size_40_w,
           child: Container(
             decoration: const BoxDecoration(
                 shape: BoxShape.circle, color: green),

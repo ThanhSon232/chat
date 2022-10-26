@@ -68,7 +68,7 @@ class LoginCubit extends Cubit<LoginState> {
         await firestoreInstance
             .collection("users")
             .doc(user.user?.uid)
-            .update({'is_online': true});
+            .update({'_is_online': true});
 
         var response =  await firestoreInstance
             .collection("users")

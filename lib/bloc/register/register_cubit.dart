@@ -86,11 +86,11 @@ class RegisterCubit extends Cubit<RegisterState> {
           .then((value) {
         //if create successfully
         firestoreInstance.collection("users").doc(value.user?.uid).set({
-          "id": value.user?.uid,
-          "fullName": nameController.text,
-          "avatarURL": "",
-          "email": emailController.text,
-          "is_online": false
+          "_id": value.user?.uid,
+          "_fullName": nameController.text,
+          "_avatarURL": "",
+          "_email": emailController.text,
+          "_is_online": false
         }).then((value) {
           context.router.pop();
           Fluttertoast.showToast(msg: "Success bro! You're good");

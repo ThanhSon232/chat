@@ -20,7 +20,7 @@ class _DashboardPageState extends State<DashboardPage>    with WidgetsBindingObs
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     FirebaseFirestore.instance.collection("users").doc(FirebaseAuth.instance.currentUser?.uid).update({
-      'is_online': true
+      '_is_online': true
     });
   }
 
@@ -28,12 +28,12 @@ class _DashboardPageState extends State<DashboardPage>    with WidgetsBindingObs
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed){
       FirebaseFirestore.instance.collection("users").doc(FirebaseAuth.instance.currentUser?.uid).update({
-        'is_online': true
+        '_is_online': true
       });
     }
     else {
       FirebaseFirestore.instance.collection("users").doc(FirebaseAuth.instance.currentUser?.uid).update({
-        'is_online': false
+        '_is_online': false
       });
     }
   }
