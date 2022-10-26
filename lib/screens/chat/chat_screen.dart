@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat_ui/flutter_chat_ui.dart' as chat_ui;
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 import '../../theme/color.dart';
 import '../../theme/style.dart';
@@ -81,17 +82,40 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         body: BlocBuilder<ChatCubit, ChatState>(
           builder: (context, state) {
-            if (state is ChatLoading) return const CircularProgressIndicator();
-            return chat_ui.Chat(
-                messages: cubit.messageList,
-                onSendPressed: (msg) {},
-                user: cubit.user,
-                onEndReached: () async {
-                  // await cubit.loadMore();
-                },
-                customBottomWidget: customBottomWidget(),
-                customMessageBuilder: customMessageBuilder);
+            if (state is ChatLoading) {
+              return const CircularProgressIndicator();
+            }
+            return SafeArea(
+              child: chat_ui.Chat(
+                  messages: cubit.messageList,
+                  onSendPressed: (msg) {},
+                  user: cubit.user,
+                  isLastPage: cubit.isEnd,
+                  onEndReachedThreshold: 1.0,
+                  onEndReached: () async {
+                    await cubit.loadMore();
+                  },
+                  customBottomWidget: customBottomWidget(),
+                  customMessageBuilder: customMessageBuilder),
+            );
           },
+        ));
+  }
+
+  Widget scrollToBottomButton() {
+    return Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 70),
+          decoration: BoxDecoration(
+              color: grey_100, shape: BoxShape.circle),
+          child: IconButton(
+            icon: const Icon(
+              Icons.arrow_downward,
+              color: blue,
+            ),
+            onPressed: () {},
+          ),
         ));
   }
 

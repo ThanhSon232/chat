@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
 import 'package:chat/theme/color.dart';
+import 'package:equatable/equatable.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -27,10 +27,11 @@ class ChatCubit extends Cubit<ChatState> {
   StreamSubscription<QuerySnapshot>? streamSub;
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-
   GlobalKey key = GlobalKey();
   OverlayEntry? overlayEntry;
   final ImagePicker _picker = ImagePicker();
+  bool isEnd = false;
+  bool isShow = false;
 
   ChatCubit() : super(ChatInitial());
 
@@ -48,7 +49,7 @@ class ChatCubit extends Cubit<ChatState> {
     } else {
       await checkUser(userModel, currentUser);
     }
-    await getMessage(currentUser);
+    await getMessage();
     emit(ChatInitial());
   }
 
@@ -86,12 +87,13 @@ class ChatCubit extends Cubit<ChatState> {
 
   Future<void> sendMessage(types.PartialText message) async {
     try {
+      FieldValue.serverTimestamp();
       firebaseFirestore
           .collection("chat")
           .doc(chatID)
           .collection('message')
           .add({
-        'createAt': DateTime.now().microsecondsSinceEpoch,
+        'createAt': FieldValue.serverTimestamp(),
         'msg': message.text,
         'type': 'text',
         'messageID': generateRandomString(10),
@@ -109,26 +111,45 @@ class ChatCubit extends Cubit<ChatState> {
     }
   }
 
-  Future<void> loadMore() async{
+  Future<void> loadMore() async {
+    if(isEnd) return;
+    print("createAt ${messageList.last.createdAt}");
+
     var data = await firebaseFirestore
         .collection("chat")
         .doc(chatID)
         .collection("message")
-        .orderBy("createAt", descending: false).startAfter(messageList).limitToLast(1).get();
-    // print(data.docs.first.data());
+        .orderBy("createAt", descending: true)
+        .startAfter(
+            [Timestamp.fromMillisecondsSinceEpoch(messageList.last.createdAt!)])
+        .limit(10)
+        .get();
+    if (data.size > 0) {
+      for (var value in data.docChanges) {
+        messageList.add(parseMessage(value));
+      }
+    } else {
+      isEnd = true;
+    }
+    emit(ChatInitial());
+
   }
 
-  Future<void> getMessage(UserModel userModel) async {
+  Future<void> getMessage() async {
     streamSub = firebaseFirestore
         .collection("chat")
         .doc(chatID)
         .collection("message")
         .orderBy("createAt", descending: false)
+        .limitToLast(10)
         .snapshots()
         .listen((data) {
-      for (var change in data.docChanges) {
-        messageList.insert(0, parseMessage(change));
-        emit(ChatInitial());
+      for (var element in data.docChanges) {
+        if (element.type == DocumentChangeType.added) {
+          // print(element.doc.data());
+          messageList.insert(0, parseMessage(element));
+          emit(ChatInitial());
+        }
       }
     });
   }
@@ -142,6 +163,9 @@ class ChatCubit extends Cubit<ChatState> {
             imageUrl: change.doc.data()?["sender"]["imageURL"],
           ),
           id: change.doc.id,
+          createdAt: change.doc.data()!["createAt"] == null
+              ? DateTime.now().millisecondsSinceEpoch
+              : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
           size: change.doc.data()!["size"],
           name: change.doc.data()!["name"],
           uri: change.doc.data()!["uri"]);
@@ -151,8 +175,17 @@ class ChatCubit extends Cubit<ChatState> {
             id: change.doc.data()!["sender"]["id"],
             lastName: change.doc.data()?["sender"]["lastName"],
             imageUrl: change.doc.data()?["sender"]["imageURL"],
+            createdAt: change.doc.data()!["createAt"] == null
+                ? DateTime.now().millisecondsSinceEpoch
+                : change.doc
+                    .data()!["createAt"]
+                    .toDate()
+                    .millisecondsSinceEpoch,
           ),
           id: change.doc.id,
+          createdAt: change.doc.data()!["createAt"] == null
+              ? DateTime.now().millisecondsSinceEpoch
+              : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
           metadata: {
             "size": change.doc.data()!["size"],
             "name": change.doc.data()!["name"],
@@ -165,15 +198,6 @@ class ChatCubit extends Cubit<ChatState> {
                 betterPlayerDataSource: BetterPlayerDataSource(
                   BetterPlayerDataSourceType.network,
                   change.doc.data()!["uri"],
-                  // cacheConfiguration: const BetterPlayerCacheConfiguration(
-                  //   useCache: true,
-                  //   preCacheSize: 10 * 1024 * 1024,
-                  //   maxCacheSize: 10 * 1024 * 1024,
-                  //   maxCacheFileSize: 10 * 1024 * 1024,
-                  //
-                  //   ///Android only option to use cached video between app sessions
-                  //   key: "testCacheKey",
-                  // ),
                 ))
           });
     }
@@ -183,9 +207,16 @@ class ChatCubit extends Cubit<ChatState> {
           lastName: change.doc.data()?["sender"]["lastName"],
           imageUrl: change.doc.data()?["sender"]["imageURL"],
         ),
+        createdAt: change.doc.data()!["createAt"] == null
+            ? DateTime.now().millisecondsSinceEpoch
+            : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
         id: change.doc.id,
         text: change.doc.data()?["msg"]);
   }
+
+  // void showScrollToBottom(){
+  //   emit(ChatScrollToBottom(show: !isShow));
+  // }
 
   void openMenu(BuildContext context) {
     RenderBox box = key.currentContext?.findRenderObject() as RenderBox;
@@ -281,7 +312,7 @@ class ChatCubit extends Cubit<ChatState> {
     File newFile = File(file.path);
     UploadTask uploadTask = ref.putFile(newFile);
     Map size = {};
-    var thumbnailLink = '';
+    // var thumbnailLink = '';
     if (type == "video") {
       size = await getThumbnail(file);
       // Uint8List? thumbnail = size["thumbnail"];
@@ -303,7 +334,7 @@ class ChatCubit extends Cubit<ChatState> {
             .add({
           // if (type == "video")
           // 'thumbnail': thumbnailLink,
-          'createAt': DateTime.now().microsecondsSinceEpoch,
+          'createAt': FieldValue.serverTimestamp(),
           'msg': "${type.toUpperCase()}!! Click to see",
           'type': type,
           'messageID': generateRandomString(10),
