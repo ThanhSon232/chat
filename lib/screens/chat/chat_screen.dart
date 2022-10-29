@@ -1,12 +1,16 @@
+import 'dart:ui';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:better_player/better_player.dart';
 import 'package:chat/bloc/chat/chat_cubit.dart';
 import 'package:chat/data/model/user.dart';
+import 'package:chat/theme/dimension.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat_ui/flutter_chat_ui.dart' as chat_ui;
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:scroll_to_index/scroll_to_index.dart';
 
 import '../../theme/color.dart';
 import '../../theme/style.dart';
@@ -91,7 +95,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   onSendPressed: (msg) {},
                   user: cubit.user,
                   isLastPage: cubit.isEnd,
-                  onEndReachedThreshold: 1.0,
+                  bubbleBuilder: bubbleBuilder,
+                  onMessageLongPress: (context, msg) {
+                    onLongPress(msg);
+                    // print(msg.metadata?["key"]);
+                  },
+                  textMessageOptions:
+                      const chat_ui.TextMessageOptions(isTextSelectable: false),
+                  // onEndReachedThreshold: 1.0,
                   onEndReached: () async {
                     await cubit.loadMore();
                   },
@@ -102,13 +113,158 @@ class _ChatScreenState extends State<ChatScreen> {
         ));
   }
 
+  void onLongPress(types.Message message) {
+    GlobalKey key = message.metadata?["key"];
+    RenderBox box = key.currentContext?.findRenderObject() as RenderBox;
+    Offset position = box.localToGlobal(Offset.zero);
+    bool isAuthor = cubit.user.id == message.author.id;
+    Widget? child;
+    if (message.type == types.MessageType.text) {
+      message = message as types.TextMessage;
+      child = Text(
+        message.text,
+        style: TextStyle(
+            fontWeight: FontWeight.w600, color: isAuthor ? white : black),
+      );
+    } else if (message.type == types.MessageType.image) {
+      message = message as types.ImageMessage;
+      child = Image.network(message.uri);
+    } else if (message.type == types.MessageType.custom) {
+      child = BetterPlayer(
+        controller: message.metadata?["controller"],
+      );
+    }
+
+    showDialog(
+        useRootNavigator: false,
+        context: context,
+        builder: (context) {
+          return BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 10.0,
+              sigmaY: 10.0,
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: size_16_w),
+              child: Stack(
+                  alignment:
+                      isAuthor ? Alignment.centerRight : Alignment.centerLeft,
+                  children: [
+                    Positioned(
+                      top: position.dy - 50,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: isAuthor
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: [
+                          previewBuilder(
+                              child: child, box: box, message: message),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          menu(message: message)
+                        ],
+                      ),
+                    ),
+                  ]),
+            ),
+          );
+        });
+  }
+
+  Widget previewBuilder(
+      {Widget? child, required RenderBox box, required types.Message message}) {
+    return Container(
+      height: box.size.height,
+      alignment: Alignment.center,
+      width: box.size.width,
+      decoration: BoxDecoration(
+          color: message.type == types.MessageType.image
+              ? grey_100
+              : cubit.user.id == message.author.id
+                  ? blue
+                  : grey_100,
+          borderRadius: BorderRadius.circular(16)),
+      child: Center(child: child),
+    );
+  }
+
+  Widget menu({required types.Message message}) {
+    return Container(
+      alignment: Alignment.center,
+      decoration:
+          BoxDecoration(color: white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          if (message.type == types.MessageType.text)
+            TextButton.icon(
+                onPressed: () async {
+                  message as types.TextMessage;
+                  await Clipboard.setData(ClipboardData(text: message.text))
+                      .then((value) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Copied to your clipboard !'),
+                      duration: Duration(milliseconds: 1000),
+                    ));
+                    Navigator.of(context).pop();
+                  });
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text("Copy")),
+          if (message.type == types.MessageType.image ||
+              message.type == types.MessageType.custom)
+            TextButton.icon(
+                onPressed: ()  {
+                  cubit.downloadMedia(message).then((value){
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Saved !!!'),
+                      duration: Duration(milliseconds: 1000),
+                    ));
+                    Navigator.of(context).pop();
+
+                  });
+                },
+                icon: const Icon(Icons.save),
+                label: const Text("Save")),
+          if (cubit.user.id == message.author.id)
+            TextButton.icon(
+                onPressed: () {
+                  cubit.removeMessage(message);
+                },
+                icon: const Icon(Icons.delete),
+                label: const Text("Remove")),
+        ],
+      ),
+    );
+  }
+
+  Widget bubbleBuilder(
+    Widget child, {
+    required types.Message message,
+    required bool nextMessageInGroup,
+  }) {
+    return Container(
+      key: message.metadata?["key"],
+      decoration: BoxDecoration(
+          color: message.type == types.MessageType.image
+              ? grey_100
+              : cubit.user.id == message.author.id
+                  ? blue
+                  : grey_100,
+          borderRadius: BorderRadius.circular(16)),
+      child: child,
+      // child: child,
+    );
+  }
+
   Widget scrollToBottomButton() {
     return Align(
         alignment: Alignment.bottomCenter,
         child: Container(
           margin: const EdgeInsets.only(bottom: 70),
-          decoration: BoxDecoration(
-              color: grey_100, shape: BoxShape.circle),
+          decoration: BoxDecoration(color: grey_100, shape: BoxShape.circle),
           child: IconButton(
             icon: const Icon(
               Icons.arrow_downward,
@@ -123,8 +279,13 @@ class _ChatScreenState extends State<ChatScreen> {
       {required int messageWidth}) {
     return AspectRatio(
       aspectRatio: msg.metadata!["aspect_ratio"],
-      child: BetterPlayer(
-        controller: msg.metadata!["controller"],
+      child: BetterPlayerMultipleGestureDetector(
+        onLongPress: () {
+          onLongPress(msg);
+        },
+        child: BetterPlayer(
+          controller: msg.metadata!["controller"],
+        ),
       ),
     );
   }

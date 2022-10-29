@@ -4,7 +4,9 @@ import 'dart:math';
 
 import 'package:bloc/bloc.dart';
 import 'package:chat/theme/color.dart';
-import 'package:equatable/equatable.dart';
+import 'package:dio/dio.dart';
+import 'package:gallery_saver/gallery_saver.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -55,8 +57,6 @@ class ChatCubit extends Cubit<ChatState> {
 
   Future<void> checkUser(UserModel userModel, UserModel currentUser) async {
     try {
-      print(userModel.fullName);
-      print(currentUser.fullName);
       await firebaseFirestore
           .collection("chat")
           .where('users', isEqualTo: {userModel.id: null, currentUser.id: null})
@@ -112,9 +112,7 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> loadMore() async {
-    if(isEnd) return;
-    print("createAt ${messageList.last.createdAt}");
-
+    if (isEnd) return;
     var data = await firebaseFirestore
         .collection("chat")
         .doc(chatID)
@@ -122,7 +120,7 @@ class ChatCubit extends Cubit<ChatState> {
         .orderBy("createAt", descending: true)
         .startAfter(
             [Timestamp.fromMillisecondsSinceEpoch(messageList.last.createdAt!)])
-        .limit(10)
+        .limit(15)
         .get();
     if (data.size > 0) {
       for (var value in data.docChanges) {
@@ -132,23 +130,42 @@ class ChatCubit extends Cubit<ChatState> {
       isEnd = true;
     }
     emit(ChatInitial());
-
   }
 
   Future<void> getMessage() async {
+    var data = await firebaseFirestore
+        .collection("chat")
+        .doc(chatID)
+        .collection("message")
+        .orderBy("createAt", descending: true)
+        .limit(15)
+        .get();
+
+    for (var element in data.docChanges) {
+      messageList.add(parseMessage(element));
+    }
+
     streamSub = firebaseFirestore
         .collection("chat")
         .doc(chatID)
         .collection("message")
         .orderBy("createAt", descending: false)
-        .limitToLast(10)
         .snapshots()
         .listen((data) {
       for (var element in data.docChanges) {
-        if (element.type == DocumentChangeType.added) {
-          // print(element.doc.data());
-          messageList.insert(0, parseMessage(element));
-          emit(ChatInitial());
+        if (element.type == DocumentChangeType.modified) {
+          if (element.doc.data()?["msg"] != null) {
+            messageList.insert(0, parseMessage(element));
+            emit(ChatInitial());
+          }
+        } else if (element.type == DocumentChangeType.removed) {
+          for (var value in messageList) {
+            if (value.id == element.doc.id) {
+              messageList.remove(value);
+              emit(ChatInitial());
+              break;
+            }
+          }
         }
       }
     });
@@ -168,6 +185,7 @@ class ChatCubit extends Cubit<ChatState> {
               : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
           size: change.doc.data()!["size"],
           name: change.doc.data()!["name"],
+          metadata: {"key": GlobalKey()},
           uri: change.doc.data()!["uri"]);
     } else if (change.doc.data()?["type"] == "video") {
       return types.CustomMessage(
@@ -190,6 +208,7 @@ class ChatCubit extends Cubit<ChatState> {
             "size": change.doc.data()!["size"],
             "name": change.doc.data()!["name"],
             "uri": change.doc.data()!["uri"],
+            "key": GlobalKey(),
             "aspect_ratio": change.doc.data()!["aspect_ratio"],
             "controller": BetterPlayerController(
                 BetterPlayerConfiguration(
@@ -211,12 +230,9 @@ class ChatCubit extends Cubit<ChatState> {
             ? DateTime.now().millisecondsSinceEpoch
             : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
         id: change.doc.id,
+        metadata: {"key": GlobalKey()},
         text: change.doc.data()?["msg"]);
   }
-
-  // void showScrollToBottom(){
-  //   emit(ChatScrollToBottom(show: !isShow));
-  // }
 
   void openMenu(BuildContext context) {
     RenderBox box = key.currentContext?.findRenderObject() as RenderBox;
@@ -312,17 +328,8 @@ class ChatCubit extends Cubit<ChatState> {
     File newFile = File(file.path);
     UploadTask uploadTask = ref.putFile(newFile);
     Map size = {};
-    // var thumbnailLink = '';
     if (type == "video") {
       size = await getThumbnail(file);
-      // Uint8List? thumbnail = size["thumbnail"];
-      // String thumbName = File.fromRawPath(thumbnail!).path.split("/").last;
-      // Reference r = _storage.ref("images/$thumbName");
-      // UploadTask uploadThumbnail = r.putFile(File.fromRawPath(thumbnail!));
-      // await uploadThumbnail.then((res) async {
-      //  thumbnailLink =  await res.ref.getDownloadURL();
-      //  print(thumbnailLink);
-      // });
     }
 
     await uploadTask.then((res) {
@@ -368,5 +375,33 @@ class ChatCubit extends Cubit<ChatState> {
       "width": decodedImage.width,
       "height": decodedImage.height
     };
+  }
+
+  Future<void> downloadMedia(types.Message message) async {
+    var dio = Dio();
+    if (message is types.ImageMessage) {
+      var tempDir = await getApplicationDocumentsDirectory();
+      String fullPath = "${tempDir.path}/${message.name}";
+      await dio.download(message.uri, fullPath).then((value) {
+        GallerySaver.saveImage(fullPath).then((success) {}, onError: (e) {});
+      });
+    } else {
+      var tempDir = await getApplicationDocumentsDirectory();
+      String fullPath = "${tempDir.path}/${message.metadata!["name"]}";
+      await dio.download(message.metadata!["uri"], fullPath).then((value) {
+        GallerySaver.saveVideo(fullPath).then((success) {}, onError: (e) {});
+      });
+    }
+  }
+
+  Future<void> removeMessage(types.Message message) async {
+    streamSub?.pause();
+    await firebaseFirestore
+        .collection("chat")
+        .doc(chatID)
+        .collection('message')
+        .doc(message.id)
+        .delete();
+    streamSub?.resume();
   }
 }
