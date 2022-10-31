@@ -181,9 +181,16 @@ class _MessagePageState extends State<MessagePage> {
               cubit.messageList.insert(0, state.message);
             }
           }
+        } else if(state is MessageListDelete){
+          for (var element in cubit.messageList) {
+            if(element.id == state.message){
+              cubit.messageList.remove(element);
+              break;
+            }
+          }
         }
       },
-      buildWhen: (prev, cur) => (cur is MessageListLoaded),
+      buildWhen: (prev, cur) => (cur is MessageListLoaded || cur is MessageListDelete),
       builder: (context, state) {
         if (state is MessageListLoading) {
           return const CircularProgressIndicator();
@@ -202,7 +209,9 @@ class _MessagePageState extends State<MessagePage> {
                       foregroundColor: white,
                       icon: Icons.delete,
                       label: 'Delete',
-                      onPressed: (BuildContext context) {},
+                      onPressed: (BuildContext context) async{
+                        await cubit.deleteAllMessage(cubit.messageList[index]);
+                      },
                     ),
                   ],
                 ),

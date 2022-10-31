@@ -1,15 +1,101 @@
+import 'package:auto_route/auto_route.dart';
+import 'package:chat/bloc/people/people_cubit.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class PeopleScreen extends StatefulWidget {
+import '../../route.gr.dart';
+import '../../theme/color.dart';
+import '../../theme/dimension.dart';
+import '../../theme/style.dart';
+import '../../widgets/custom_circle_avatar_status.dart';
+
+class PeopleScreen extends StatefulWidget implements AutoRouteWrapper {
   const PeopleScreen({Key? key}) : super(key: key);
 
   @override
   State<PeopleScreen> createState() => _PeopleScreenState();
+
+  @override
+  Widget wrappedRoute(BuildContext context) {
+    return BlocProvider(
+      create: (context) => PeopleCubit(),
+      child: this, // this as the child Important!
+    );
+  }
 }
 
 class _PeopleScreenState extends State<PeopleScreen> {
+  late PeopleCubit cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    cubit = BlocProvider.of(context);
+    cubit.init();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "People",
+          style: header,
+        ),
+        centerTitle: false,
+        backgroundColor: white,
+        elevation: 0,
+      ),
+      backgroundColor: white,
+      body: BlocConsumer<PeopleCubit, PeopleState>(
+        listener: (context, state) {},
+        builder: (context, state) {
+          if (state is PeopleInitial) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          } else
+            if (state is PeopleLoaded) {
+            var peopleList = state.userModelList;
+            return peopleList.isNotEmpty
+                ? ListView.separated(
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        leading: CustomCircleAvatarStatus(
+                          user: peopleList[index],
+                          radius: size_30_w,
+                        ),
+                        title: Text(
+                          peopleList[index].fullName,
+                          overflow: TextOverflow.ellipsis,
+                          style: title.copyWith(
+                              color: black,
+                              fontWeight: FontWeight.w500,
+                              fontSize: size_18_sp),
+                        ),
+                        onTap: () {
+                          context.router.push(ChatScreenRoute(
+                              userModel: peopleList[index],
+                              chatID:    ""));
+                        },
+                      );
+                    },
+                    separatorBuilder: (_, index) {
+                      return SizedBox(
+                        height: size_10_h,
+                      );
+                    },
+                    itemCount: peopleList.length,
+                  )
+                : const Center(
+                    child: Text("No one is online bro"),
+                  );
+          }
+
+          return const Text("Error");
+        },
+      ),
+    );
   }
 }

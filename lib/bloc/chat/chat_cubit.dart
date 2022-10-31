@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:bloc/bloc.dart';
 import 'package:chat/theme/color.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
@@ -30,6 +31,7 @@ class ChatCubit extends Cubit<ChatState> {
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   GlobalKey key = GlobalKey();
+  GlobalKey secondKey = GlobalKey();
   OverlayEntry? overlayEntry;
   final ImagePicker _picker = ImagePicker();
   bool isEnd = false;
@@ -212,6 +214,10 @@ class ChatCubit extends Cubit<ChatState> {
             "aspect_ratio": change.doc.data()!["aspect_ratio"],
             "controller": BetterPlayerController(
                 BetterPlayerConfiguration(
+                    deviceOrientationsAfterFullScreen: [
+                      DeviceOrientation.portraitUp
+                    ],
+                    autoDetectFullscreenAspectRatio: true,
                     autoDispose: false,
                     aspectRatio: change.doc.data()!["aspect_ratio"]),
                 betterPlayerDataSource: BetterPlayerDataSource(
@@ -234,13 +240,20 @@ class ChatCubit extends Cubit<ChatState> {
         text: change.doc.data()?["msg"]);
   }
 
-  void openMenu(BuildContext context) {
-    RenderBox box = key.currentContext?.findRenderObject() as RenderBox;
+  void openCameraSelector(BuildContext context) {
+    RenderBox box = secondKey.currentContext?.findRenderObject() as RenderBox;
     Offset position = box.localToGlobal(Offset.zero);
-    showOverlay(context, position: position);
+    showOverlay(context, position: position, type: "camera");
   }
 
-  void showOverlay(BuildContext context, {required Offset position}) async {
+  void openMediaSelector(BuildContext context) {
+    RenderBox box = key.currentContext?.findRenderObject() as RenderBox;
+    Offset position = box.localToGlobal(Offset.zero);
+    showOverlay(context, position: position, type: "gallery");
+  }
+
+  void showOverlay(BuildContext context,
+      {required Offset position, required String type}) async {
     OverlayState? overlayState = Overlay.of(context);
     overlayEntry = OverlayEntry(builder: (context) {
       return Stack(
@@ -275,7 +288,7 @@ class ChatCubit extends Cubit<ChatState> {
                             width: double.infinity,
                             child: TextButton(
                                 onPressed: () {
-                                  sendPicture();
+                                  sendPicture(type);
                                   overlayEntry!.remove();
                                 },
                                 child: const Text("Picture"))),
@@ -289,7 +302,7 @@ class ChatCubit extends Cubit<ChatState> {
                             width: double.infinity,
                             child: TextButton(
                                 onPressed: () {
-                                  sendVideo();
+                                  sendVideo(type);
                                   overlayEntry!.remove();
                                 },
                                 child: const Text("Video"))),
@@ -309,15 +322,24 @@ class ChatCubit extends Cubit<ChatState> {
     overlayState!.insert(overlayEntry!);
   }
 
-  Future<void> sendPicture() async {
-    XFile? file = await _picker.pickImage(source: ImageSource.gallery);
+  // Future<void> sendPictureFromCamera() async {
+  //   XFile? file = await _picker.pickImage(source: ImageSource.camera);
+  //   if (file != null) {
+  //     await uploadToStorage("image", file);
+  //   }
+  // }
+
+  Future<void> sendPicture(String type) async {
+    XFile? file = await _picker.pickImage(
+        source: type == "gallery" ? ImageSource.gallery : ImageSource.camera);
     if (file != null) {
       await uploadToStorage("image", file);
     }
   }
 
-  Future<void> sendVideo() async {
-    XFile? file = await _picker.pickVideo(source: ImageSource.gallery);
+  Future<void> sendVideo(String type) async {
+    XFile? file = await _picker.pickVideo(
+        source: type == "gallery" ? ImageSource.gallery : ImageSource.camera);
     if (file != null) {
       uploadToStorage("video", file);
     }

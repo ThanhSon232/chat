@@ -47,9 +47,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
     super.dispose();
     cubit.streamSub?.cancel();
+    for (var element in cubit.messageList) {
+      if (element.type == types.MessageType.custom) {
+        element.metadata!["controller"].dispose();
+      }
+    }
   }
 
   @override
@@ -87,7 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
         body: BlocBuilder<ChatCubit, ChatState>(
           builder: (context, state) {
             if (state is ChatLoading) {
-              return const CircularProgressIndicator();
+              return const Center(child: CircularProgressIndicator());
             }
             return SafeArea(
               child: chat_ui.Chat(
@@ -98,11 +102,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   bubbleBuilder: bubbleBuilder,
                   onMessageLongPress: (context, msg) {
                     onLongPress(msg);
-                    // print(msg.metadata?["key"]);
                   },
                   textMessageOptions:
                       const chat_ui.TextMessageOptions(isTextSelectable: false),
-                  // onEndReachedThreshold: 1.0,
+                  onEndReachedThreshold: 1.0,
                   onEndReached: () async {
                     await cubit.loadMore();
                   },
@@ -216,14 +219,13 @@ class _ChatScreenState extends State<ChatScreen> {
           if (message.type == types.MessageType.image ||
               message.type == types.MessageType.custom)
             TextButton.icon(
-                onPressed: ()  {
-                  cubit.downloadMedia(message).then((value){
+                onPressed: () {
+                  cubit.downloadMedia(message).then((value) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Saved !!!'),
                       duration: Duration(milliseconds: 1000),
                     ));
                     Navigator.of(context).pop();
-
                   });
                 },
                 icon: const Icon(Icons.save),
@@ -231,7 +233,9 @@ class _ChatScreenState extends State<ChatScreen> {
           if (cubit.user.id == message.author.id)
             TextButton.icon(
                 onPressed: () {
-                  cubit.removeMessage(message);
+                  cubit.removeMessage(message).then((value) {
+                    Navigator.of(context).pop();
+                  });
                 },
                 icon: const Icon(Icons.delete),
                 label: const Text("Remove")),
@@ -296,8 +300,8 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.all(10.0),
         child: Row(
           children: [
-            Expanded(
-                flex: 3,
+            Flexible(
+                flex: 4,
                 child: Row(
                   children: [
                     IconButton(
@@ -305,16 +309,25 @@ class _ChatScreenState extends State<ChatScreen> {
                       onPressed: () {},
                     ),
                     IconButton(
+                        onPressed: () {
+                          cubit.openCameraSelector(context);
+                        },
+                        key: cubit.secondKey,
+                        icon: const Icon(
+                          Icons.camera_alt,
+                          color: blue,
+                        )),
+                    IconButton(
                       key: cubit.key,
                       icon: const Icon(Icons.perm_media_outlined, color: blue),
                       onPressed: () {
-                        cubit.openMenu(context);
+                        cubit.openMediaSelector(context);
                       },
                     ),
                   ],
                 )),
-            Expanded(
-                flex: 6,
+            Flexible(
+                flex: 5,
                 child: TextFormField(
                   controller: cubit.msgController,
                   decoration: InputDecoration(
@@ -326,7 +339,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         gapPadding: 0, borderRadius: BorderRadius.circular(16)),
                   ),
                 )),
-            Expanded(
+            Flexible(
                 flex: 1,
                 child: IconButton(
                   icon: const Icon(

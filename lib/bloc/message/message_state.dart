@@ -45,3 +45,14 @@ class MessageListLoaded extends MessageState {
   ];
 }
 
+class MessageListDelete extends MessageState{
+  final String message;
+
+  MessageListDelete({required this.message});
+
+  @override
+  List<Object> get props => [
+    message
+  ];
+}
+

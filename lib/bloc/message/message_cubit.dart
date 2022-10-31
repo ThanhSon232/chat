@@ -34,50 +34,69 @@ class MessageCubit extends Cubit<MessageState> {
     });
   }
 
+  Future<void> deleteAllMessage(MessageTile msg) async {
+    try {
+      await firebaseFirestore
+          .collection("chat")
+          .doc(msg.id)
+          .delete()
+          .timeout(const Duration(seconds: 30));
+      messageList.remove(msg);
+    } catch (e) {
+      if (e is FirebaseException) {
+        print(e.message);
+      }
+    }
+  }
+
   Future<void> getMessageList() async {
     try {
-      print(currentUser.id);
       streamSub = firebaseFirestore
           .collection("chat")
           .where('users.${currentUser.id}', isNull: true)
           .snapshots()
           .listen((event) async {
         for (var element in event.docChanges) {
-          if (element.doc.data()?["last_message"] != null) {
-            var message = element.doc.data()?["last_message"];
-            Map receiver = element.doc.data()?["users"];
-            receiver.remove(currentUser.id);
-            UserModel? parsedUser = userList.firstWhere(
-                (element) => element.id == receiver.keys.first,
-                orElse: () => UserModel());
+          if (element.type == DocumentChangeType.removed) {
+            emit(MessageListDelete(message: element.doc.id));
+          } else if (element.type == DocumentChangeType.added ||
+              element.type == DocumentChangeType.modified) {
+            if (element.doc.data()?["last_message"] != null) {
+              var message = element.doc.data()?["last_message"];
+              Map receiver = element.doc.data()?["users"];
+              receiver.remove(currentUser.id);
+              UserModel? parsedUser = userList.firstWhere(
+                  (element) => element.id == receiver.keys.first,
+                  orElse: () => UserModel());
 
-            if (parsedUser.id.isEmpty) {
-              var author = await firebaseFirestore
-                  .collection("users")
-                  .doc(receiver.keys.first)
-                  .get();
+              if (parsedUser.id.isEmpty) {
+                var author = await firebaseFirestore
+                    .collection("users")
+                    .doc(receiver.keys.first)
+                    .get();
 
-              parsedUser = UserModel.fromJson(author.data() ?? {});
-              for (int i = 0; i < userList.length; i++) {
-                if (userList[i] == author.data()?["id"]) {
-                  userList[i] = parsedUser;
-                  emit(MessageOnlineUserLoaded(userList: userList));
+                parsedUser = UserModel.fromJson(author.data() ?? {});
+                for (int i = 0; i < userList.length; i++) {
+                  if (userList[i] == author.data()?["id"]) {
+                    userList[i] = parsedUser;
+                    emit(MessageOnlineUserLoaded(userList: userList));
+                  }
                 }
               }
+
+              MessageTile messageTile = MessageTile(
+                  id: element.doc.id,
+                  user: parsedUser,
+                  message: types.TextMessage(
+                      id: message["messageID"],
+                      author: types.User(
+                          id: message["sender"]["id"],
+                          lastName: message["sender"]["lastName"],
+                          imageUrl: message["imageURL"]),
+                      text: message["msg"]));
+
+              emit(MessageListLoaded(message: messageTile));
             }
-
-            MessageTile messageTile = MessageTile(
-                id: element.doc.id,
-                user: parsedUser,
-                message: types.TextMessage(
-                    id: message["messageID"],
-                    author: types.User(
-                        id: message["sender"]["id"],
-                        lastName: message["sender"]["lastName"],
-                        imageUrl: message["imageURL"]),
-                    text: message["msg"]));
-
-            emit(MessageListLoaded(message: messageTile));
           }
         }
       });
@@ -101,16 +120,16 @@ class MessageCubit extends Cubit<MessageState> {
           .get()
           .timeout(const Duration(seconds: 30));
 
-
-
       for (var element in snapshot.docs) {
         var friend =
             await firebaseFirestore.collection("users").doc(element.id).get();
         if (friend.data()!["_is_online"]) {
           tempList.add(UserModel.fromJson(friend.data() ?? {}));
         }
-          MessageTile? us = messageList.firstWhere((e) => element.id == e.user!.id, orElse: ()=> MessageTile());
-        if(us.id != null){
+        MessageTile? us = messageList.firstWhere(
+            (e) => element.id == e.user!.id,
+            orElse: () => MessageTile());
+        if (us.id != null) {
           us.user?.isOnline = friend.data()!["_is_online"];
           emit(MessageListLoaded(message: us));
         }
