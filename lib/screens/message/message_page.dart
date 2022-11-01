@@ -6,7 +6,7 @@ import 'package:chat/theme/dimension.dart';
 import 'package:chat/theme/style.dart';
 import 'package:chat/widgets/custom_circle_avatar.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:chat/widgets/custom_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -108,21 +108,11 @@ class _MessagePageState extends State<MessagePage> {
   }
 
   Widget searchBar() {
-    return TextFormField(
+    return CustomSearch(
+      onTap: (){
+        context.router.pushNamed("/search-page");
+      },
       readOnly: true,
-      decoration: InputDecoration(
-        prefixIcon: const Icon(
-          Icons.search,
-          color: grey,
-        ),
-        hintText: "Search",
-        contentPadding: EdgeInsets.zero,
-        fillColor: grey_100,
-        filled: true,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none),
-      ),
     );
   }
 
@@ -181,16 +171,17 @@ class _MessagePageState extends State<MessagePage> {
               cubit.messageList.insert(0, state.message);
             }
           }
-        } else if(state is MessageListDelete){
+        } else if (state is MessageListDelete) {
           for (var element in cubit.messageList) {
-            if(element.id == state.message){
+            if (element.id == state.message) {
               cubit.messageList.remove(element);
               break;
             }
           }
         }
       },
-      buildWhen: (prev, cur) => (cur is MessageListLoaded || cur is MessageListDelete),
+      buildWhen: (prev, cur) =>
+          (cur is MessageListLoaded || cur is MessageListDelete),
       builder: (context, state) {
         if (state is MessageListLoading) {
           return const CircularProgressIndicator();
@@ -209,7 +200,7 @@ class _MessagePageState extends State<MessagePage> {
                       foregroundColor: white,
                       icon: Icons.delete,
                       label: 'Delete',
-                      onPressed: (BuildContext context) async{
+                      onPressed: (BuildContext context) async {
                         await cubit.deleteAllMessage(cubit.messageList[index]);
                       },
                     ),

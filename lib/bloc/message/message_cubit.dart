@@ -36,12 +36,12 @@ class MessageCubit extends Cubit<MessageState> {
 
   Future<void> deleteAllMessage(MessageTile msg) async {
     try {
-      await firebaseFirestore
+      var response = await firebaseFirestore
           .collection("chat")
-          .doc(msg.id)
-          .delete()
+          .doc(msg.id).collection("users").doc(currentUser.id).delete()
           .timeout(const Duration(seconds: 30));
       messageList.remove(msg);
+
     } catch (e) {
       if (e is FirebaseException) {
         print(e.message);
@@ -51,6 +51,12 @@ class MessageCubit extends Cubit<MessageState> {
 
   Future<void> getMessageList() async {
     try {
+      // var data = await firebaseFirestore
+      //     .collection("chat").orderBy("createAt").where('users.${currentUser.id}', isNull: true).get();
+      // for (var element in data.docChanges) {
+      //   print(element.doc.data());
+      // }
+
       streamSub = firebaseFirestore
           .collection("chat")
           .where('users.${currentUser.id}', isNull: true)
@@ -61,6 +67,7 @@ class MessageCubit extends Cubit<MessageState> {
             emit(MessageListDelete(message: element.doc.id));
           } else if (element.type == DocumentChangeType.added ||
               element.type == DocumentChangeType.modified) {
+            print(element.doc.data());
             if (element.doc.data()?["last_message"] != null) {
               var message = element.doc.data()?["last_message"];
               Map receiver = element.doc.data()?["users"];

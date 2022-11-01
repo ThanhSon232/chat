@@ -99,6 +99,7 @@ class RegisterCubit extends Cubit<RegisterState> {
           Fluttertoast.showToast(
               msg: "Timeout, check your connection or try later");
           EasyLoading.dismiss();
+
         }).onError((FirebaseException error, stackTrace) {
           firebaseInstance.currentUser?.delete().then((value) {
             Fluttertoast.showToast(msg: error.message.toString());

@@ -5,6 +5,7 @@ import 'package:better_player/better_player.dart';
 import 'package:chat/bloc/chat/chat_cubit.dart';
 import 'package:chat/data/model/user.dart';
 import 'package:chat/theme/dimension.dart';
+import 'package:chat/widgets/custom_circle_avatar_status.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -198,21 +199,13 @@ class _ChatScreenState extends State<ChatScreen> {
       alignment: Alignment.center,
       decoration:
           BoxDecoration(color: white, borderRadius: BorderRadius.circular(16)),
-      child: Column(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           if (message.type == types.MessageType.text)
             TextButton.icon(
                 onPressed: () async {
-                  message as types.TextMessage;
-                  await Clipboard.setData(ClipboardData(text: message.text))
-                      .then((value) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Copied to your clipboard !'),
-                      duration: Duration(milliseconds: 1000),
-                    ));
-                    Navigator.of(context).pop();
-                  });
+                  cubit.copyText(context, message);
                 },
                 icon: const Icon(Icons.copy),
                 label: const Text("Copy")),
@@ -220,13 +213,7 @@ class _ChatScreenState extends State<ChatScreen> {
               message.type == types.MessageType.custom)
             TextButton.icon(
                 onPressed: () {
-                  cubit.downloadMedia(message).then((value) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Saved !!!'),
-                      duration: Duration(milliseconds: 1000),
-                    ));
-                    Navigator.of(context).pop();
-                  });
+                  cubit.downloadMedia(context, message);
                 },
                 icon: const Icon(Icons.save),
                 label: const Text("Save")),
@@ -295,68 +282,111 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget customBottomWidget() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Row(
-          children: [
-            Flexible(
-                flex: 4,
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.attach_file, color: blue),
-                      onPressed: () {},
-                    ),
-                    IconButton(
-                        onPressed: () {
-                          cubit.openCameraSelector(context);
-                        },
-                        key: cubit.secondKey,
+    return cubit.isNotFriend
+        ? Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              height: size_200_h,
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: grey_100, borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CustomCircleAvatarStatus(user: widget.userModel),
+                  SizedBox(
+                    height: size_5_h,
+                  ),
+                  Text(
+                    widget.userModel.fullName,
+                    style: header,
+                  ),
+                  SizedBox(
+                    height: size_5_h,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      TextButton(onPressed: () async{
+                        cubit.acceptButton(widget.userModel);
+                      }, child: const Text("Accept")),
+                      TextButton(onPressed: () {}, child: const Text("Block"))
+                    ],
+                  )
+                ],
+              ),
+            ),
+          )
+        : SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Row(
+                children: [
+                  Flexible(
+                      flex: 4,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.attach_file, color: blue),
+                            onPressed: () {},
+                          ),
+                          IconButton(
+                              onPressed: () {
+                                cubit.openCameraSelector(context);
+                              },
+                              key: cubit.secondKey,
+                              icon: const Icon(
+                                Icons.camera_alt,
+                                color: blue,
+                              )),
+                          IconButton(
+                            key: cubit.key,
+                            icon: const Icon(Icons.perm_media_outlined,
+                                color: blue),
+                            onPressed: () {
+                              cubit.openMediaSelector(context);
+                            },
+                          ),
+                        ],
+                      )),
+                  Flexible(
+                      flex: 5,
+                      child: TextFormField(
+                        controller: cubit.msgController,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 10),
+                          filled: true,
+                          hintText: "Type your message...",
+                          fillColor: grey_100,
+                          border: OutlineInputBorder(
+                              gapPadding: 0,
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      )),
+                  Flexible(
+                      flex: 1,
+                      child: IconButton(
                         icon: const Icon(
-                          Icons.camera_alt,
+                          Icons.send,
                           color: blue,
-                        )),
-                    IconButton(
-                      key: cubit.key,
-                      icon: const Icon(Icons.perm_media_outlined, color: blue),
-                      onPressed: () {
-                        cubit.openMediaSelector(context);
-                      },
-                    ),
-                  ],
-                )),
-            Flexible(
-                flex: 5,
-                child: TextFormField(
-                  controller: cubit.msgController,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    filled: true,
-                    hintText: "Type your message...",
-                    fillColor: grey_100,
-                    border: OutlineInputBorder(
-                        gapPadding: 0, borderRadius: BorderRadius.circular(16)),
-                  ),
-                )),
-            Flexible(
-                flex: 1,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.send,
-                    color: blue,
-                  ),
-                  onPressed: () async {
-                    if (cubit.msgController.text.isNotEmpty) {
-                      await cubit.sendMessage(
-                          types.PartialText(text: cubit.msgController.text));
-                      cubit.msgController.clear();
-                    }
-                  },
-                ))
-          ],
-        ),
-      ),
-    );
+                        ),
+                        onPressed: () async {
+                          if (cubit.msgController.text.isNotEmpty) {
+                            await cubit.sendMessage(types.PartialText(
+                                text: cubit.msgController.text));
+                            cubit.msgController.clear();
+                          }
+                        },
+                      ))
+                ],
+              ),
+            ),
+          );
   }
 }

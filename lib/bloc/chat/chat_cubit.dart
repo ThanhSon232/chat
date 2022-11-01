@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:bloc/bloc.dart';
 import 'package:chat/theme/color.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,6 +37,7 @@ class ChatCubit extends Cubit<ChatState> {
   final ImagePicker _picker = ImagePicker();
   bool isEnd = false;
   bool isShow = false;
+  bool isNotFriend = false;
 
   ChatCubit() : super(ChatInitial());
 
@@ -50,10 +52,30 @@ class ChatCubit extends Cubit<ChatState> {
     );
     if (id.isNotEmpty) {
       chatID = id;
+      var response = await firebaseFirestore
+          .collection("users")
+          .doc(currentUser.id)
+          .collection("friends")
+          .doc(userModel.id)
+          .get();
+      if (response.data() == null) {
+        isNotFriend = true;
+      }
     } else {
       await checkUser(userModel, currentUser);
     }
     await getMessage();
+    emit(ChatInitial());
+  }
+
+  Future<void> acceptButton(UserModel userModel) async {
+    var response = await firebaseFirestore
+        .collection("users")
+        .doc(user.id)
+        .collection("friends")
+        .doc(userModel.id)
+        .set({});
+    isNotFriend = false;
     emit(ChatInitial());
   }
 
@@ -68,11 +90,17 @@ class ChatCubit extends Cubit<ChatState> {
             (QuerySnapshot querySnapshot) async {
               if (querySnapshot.docs.isNotEmpty) {
                 chatID = querySnapshot.docs.single.id;
-                print(querySnapshot.docs.single.id);
               } else {
                 await firebaseFirestore.collection("chat").add({
                   'users': {userModel.id: null, currentUser.id: null},
+                  'createAt': FieldValue.serverTimestamp(),
                 }).then((value) => {chatID = value.id});
+                await firebaseFirestore
+                    .collection("users")
+                    .doc(currentUser.id)
+                    .collection("friends")
+                    .doc(userModel.id)
+                    .set({});
               }
             },
           );
@@ -219,6 +247,13 @@ class ChatCubit extends Cubit<ChatState> {
                     ],
                     autoDetectFullscreenAspectRatio: true,
                     autoDispose: false,
+                    expandToFill: false,
+                    fit: BoxFit.contain,
+                    showPlaceholderUntilPlay: true,
+                    fullScreenAspectRatio: change.doc.data()!["aspect_ratio"],
+                    placeholder: change.doc.data()!["thumbnail"] != null
+                        ? Image.network(change.doc.data()!["thumbnail"])
+                        : null,
                     aspectRatio: change.doc.data()!["aspect_ratio"]),
                 betterPlayerDataSource: BetterPlayerDataSource(
                   BetterPlayerDataSourceType.network,
@@ -322,13 +357,6 @@ class ChatCubit extends Cubit<ChatState> {
     overlayState!.insert(overlayEntry!);
   }
 
-  // Future<void> sendPictureFromCamera() async {
-  //   XFile? file = await _picker.pickImage(source: ImageSource.camera);
-  //   if (file != null) {
-  //     await uploadToStorage("image", file);
-  //   }
-  // }
-
   Future<void> sendPicture(String type) async {
     XFile? file = await _picker.pickImage(
         source: type == "gallery" ? ImageSource.gallery : ImageSource.camera);
@@ -349,9 +377,9 @@ class ChatCubit extends Cubit<ChatState> {
     Reference ref = _storage.ref("$type/${file.name}");
     File newFile = File(file.path);
     UploadTask uploadTask = ref.putFile(newFile);
-    Map size = {};
+    Map info = {};
     if (type == "video") {
-      size = await getThumbnail(file);
+      info = await getThumbnail(file);
     }
 
     await uploadTask.then((res) {
@@ -361,8 +389,7 @@ class ChatCubit extends Cubit<ChatState> {
             .doc(chatID)
             .collection('message')
             .add({
-          // if (type == "video")
-          // 'thumbnail': thumbnailLink,
+          if (type == "video") 'thumbnail': info["thumbnail"],
           'createAt': FieldValue.serverTimestamp(),
           'msg': "${type.toUpperCase()}!! Click to see",
           'type': type,
@@ -371,7 +398,7 @@ class ChatCubit extends Cubit<ChatState> {
           'name': file.name,
           'size': File(file.path).lengthSync(),
           'uri': value,
-          if (type == "video") 'aspect_ratio': size["width"] / size["height"]
+          if (type == "video") 'aspect_ratio': info["width"] / info["height"]
         }).then((value) async {
           var response = await value.get();
           await firebaseFirestore
@@ -384,46 +411,81 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<Map<String, dynamic>> getThumbnail(XFile file) async {
-    final uint8list = await VideoThumbnail.thumbnailData(
-      video: file.path,
-      imageFormat: ImageFormat.JPEG,
-      quality: 25,
-    );
+    try {
+      final uint8list = await VideoThumbnail.thumbnailData(
+        video: file.path,
+        imageFormat: ImageFormat.JPEG,
+        quality: 25,
+      );
+      var fileName = "${generateRandomString(10)}.jpeg";
 
-    var decodedImage = await decodeImageFromList(uint8list!);
+      var decodedImage = await decodeImageFromList(uint8list!);
+      final tempDir = await getTemporaryDirectory();
+      File f = await File('${tempDir.path}/$fileName').create();
+      f.writeAsBytesSync(uint8list);
+      Reference ref = _storage.ref("/thumbnail/$fileName");
+      UploadTask uploadTask = ref.putFile(f);
+      await uploadTask.timeout(const Duration(seconds: 30));
+      var link = await ref.getDownloadURL();
 
-    return {
-      "thumbnail": uint8list,
-      "width": decodedImage.width,
-      "height": decodedImage.height
-    };
+      return {
+        "thumbnail": link,
+        "width": decodedImage.width,
+        "height": decodedImage.height
+      };
+    } catch (e) {
+      print(e.toString());
+    }
+    return {};
   }
 
-  Future<void> downloadMedia(types.Message message) async {
+  Future<void> downloadMedia(
+      BuildContext context, types.Message message) async {
     var dio = Dio();
     if (message is types.ImageMessage) {
       var tempDir = await getApplicationDocumentsDirectory();
       String fullPath = "${tempDir.path}/${message.name}";
       await dio.download(message.uri, fullPath).then((value) {
-        GallerySaver.saveImage(fullPath).then((success) {}, onError: (e) {});
+        GallerySaver.saveImage(fullPath).then((success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Saved !!!'),
+            duration: Duration(milliseconds: 1000),
+          ));
+          Navigator.of(context).pop();
+        }, onError: (e) {});
       });
     } else {
       var tempDir = await getApplicationDocumentsDirectory();
       String fullPath = "${tempDir.path}/${message.metadata!["name"]}";
       await dio.download(message.metadata!["uri"], fullPath).then((value) {
-        GallerySaver.saveVideo(fullPath).then((success) {}, onError: (e) {});
+        GallerySaver.saveVideo(fullPath).then((success) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Saved !!!'),
+            duration: Duration(milliseconds: 1000),
+          ));
+          Navigator.of(context).pop();
+        }, onError: (e) {});
       });
     }
   }
 
   Future<void> removeMessage(types.Message message) async {
-    streamSub?.pause();
     await firebaseFirestore
         .collection("chat")
         .doc(chatID)
         .collection('message')
         .doc(message.id)
         .delete();
-    streamSub?.resume();
+  }
+
+  Future<void> copyText(BuildContext context, types.Message message) async {
+    message as types.TextMessage;
+    await Clipboard.setData(ClipboardData(text: message.text)).then((value) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Copied to your clipboard !'),
+        duration: Duration(milliseconds: 1000),
+      ));
+      Navigator.of(context).pop();
+    });
   }
 }

@@ -30,11 +30,17 @@ class _PeopleScreenState extends State<PeopleScreen> {
 
   @override
   void initState() {
-    super.initState();
     cubit = BlocProvider.of(context);
     cubit.init();
+    super.initState();
+
   }
 
+  @override
+  void dispose() {
+    cubit.timer?.cancel();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,6 +52,30 @@ class _PeopleScreenState extends State<PeopleScreen> {
         centerTitle: false,
         backgroundColor: white,
         elevation: 0,
+        actions: [
+          IconButton(onPressed: (){
+            showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (builder){
+                  return Container(
+                    height: MediaQuery.of(context).size.height*.95,
+                    color: Colors.transparent, //could change this to Color(0xFF737373),
+                    //so you don't have to change MaterialApp canvasColor
+                    child: Container(
+                        decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:  BorderRadius.only(
+                                topLeft: Radius.circular(10.0),
+                                topRight: Radius.circular(10.0))),
+                        child: const Center(
+                          child:  Text("This is a modal sheet"),
+                        )),
+                  );
+                }
+            );
+          }, icon: const Icon(Icons.add, color: blue,))
+        ],
       ),
       backgroundColor: white,
       body: BlocConsumer<PeopleCubit, PeopleState>(
