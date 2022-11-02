@@ -54,7 +54,6 @@ class MessageCubit extends Cubit<MessageState> {
   }
 
   Future<void> getMessageList() async {
-    // try {
     List<MessageTile> msgList = [];
 
     var data = await firebaseFirestore
@@ -70,7 +69,7 @@ class MessageCubit extends Cubit<MessageState> {
         var data = element.data();
         var message = data["last_message"];
         var listUser = data["users"] as List;
-        Map guest = listUser.first == {currentUser.id: null}
+        Map guest = listUser.first.containsKey(currentUser.id)
             ? listUser.last
             : listUser.first;
 
@@ -133,9 +132,11 @@ class MessageCubit extends Cubit<MessageState> {
               if (data.containsKey("last_message")) {
                 var message = data["last_message"];
                 var listUser = data["users"] as List;
-                Map guest = listUser.first == {currentUser.id: null}
+                Map guest = listUser.first.containsKey(currentUser.id)
                     ? listUser.last
                     : listUser.first;
+
+                print(guest);
 
                 UserModel parsedUser = userList.firstWhere(
                     (element) => element.id == guest.keys.first,
@@ -172,17 +173,16 @@ class MessageCubit extends Cubit<MessageState> {
                 MessageTile existed = messageList.firstWhere(
                     (element) => element.id == messageTile.id,
                     orElse: () => MessageTile());
-                if (existed.id!.isNotEmpty) {
+                if (existed.id != null) {
                   messageList.remove(existed);
                   messageList.insert(0, messageTile);
                 } else {
                   messageList.insert(0, messageTile);
                 }
-
-                emit(MessageListLoaded(message: messageList));
               }
             }
           }
+          emit(MessageListLoaded(message: messageList));
         });
     // } catch (e) {
     //   if (e is FirebaseException) {
@@ -213,8 +213,7 @@ class MessageCubit extends Cubit<MessageState> {
           tempList.add(UserModel.fromJson(friend.data() ?? {}));
         }
 
-
-       // print( messageList.indexWhere((e) => e.user?.id == element.id));
+        // print( messageList.indexWhere((e) => e.user?.id == element.id));
 
         // MessageTile? us = messageList.firstWhere(
         //     (e) => element.id == e.user!.id,

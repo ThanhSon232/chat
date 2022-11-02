@@ -39,6 +39,8 @@ class ChatCubit extends Cubit<ChatState> {
   bool isShow = false;
   bool isNotFriend = false;
 
+  // bool isFirstTime = true;
+
   ChatCubit() : super(ChatInitial());
 
   void init(UserModel userModel, String id) async {
@@ -69,7 +71,7 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> acceptButton(UserModel userModel) async {
-    var response = await firebaseFirestore
+    await firebaseFirestore
         .collection("users")
         .doc(user.id)
         .collection("friends")
@@ -83,9 +85,15 @@ class ChatCubit extends Cubit<ChatState> {
     try {
       await firebaseFirestore
           .collection("chat")
-          .where('users', isEqualTo: [
-            {userModel.id: null},
-            {currentUser.id: null}
+          .where('users', whereIn: [
+            [
+              {currentUser.id: null},
+              {userModel.id: null}
+            ],
+            [
+              {userModel.id: null},
+              {currentUser.id: null}
+            ]
           ])
           .limit(1)
           .get()
@@ -142,7 +150,6 @@ class ChatCubit extends Cubit<ChatState> {
             .doc(chatID)
             .update({"last_message": response.data(), "createAt": createAt});
       });
-      emit(ChatInitial());
     } catch (e) {
       print(e.toString());
     }
@@ -170,18 +177,6 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> getMessage() async {
-    var data = await firebaseFirestore
-        .collection("chat")
-        .doc(chatID)
-        .collection("message")
-        .orderBy("createAt", descending: true)
-        .limit(15)
-        .get();
-
-    for (var element in data.docChanges) {
-      messageList.add(parseMessage(element));
-    }
-
     streamSub = firebaseFirestore
         .collection("chat")
         .doc(chatID)
@@ -189,22 +184,29 @@ class ChatCubit extends Cubit<ChatState> {
         .orderBy("createAt", descending: false)
         .snapshots()
         .listen((data) {
-      for (var element in data.docChanges) {
-        if (element.type == DocumentChangeType.modified) {
+      var size = data.docChanges.length > 15 ? 15 : data.docChanges.length;
+      var i = 0;
+      for (var element in data.docChanges.reversed) {
+        if (i > size) break;
+        if (element.type == DocumentChangeType.added) {
           if (element.doc.data()?["msg"] != null) {
-            messageList.insert(0, parseMessage(element));
-            emit(ChatInitial());
+            if (size == 1) {
+              messageList.insert(0, parseMessage(element));
+            } else {
+              messageList.add(parseMessage(element));
+            }
           }
         } else if (element.type == DocumentChangeType.removed) {
           for (var value in messageList) {
             if (value.id == element.doc.id) {
               messageList.remove(value);
-              emit(ChatInitial());
               break;
             }
           }
         }
+        i++;
       }
+      emit(ChatInitial());
     });
   }
 

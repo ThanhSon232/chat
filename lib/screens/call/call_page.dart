@@ -1,4 +1,5 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -17,10 +18,14 @@ class _CallPageState extends State<CallPage> {
     return Container(
       child: TextButton(
         onPressed: () async {
+          await FirebaseFirestore.instance.collection("users").doc(FirebaseAuth.instance.currentUser?.uid).update({
+            '_is_online': false
+          });
           await FirebaseAuth.instance.signOut();
           var box = await Hive.openBox("box");
           await box.clear();
           context.router.replaceNamed('/login-screen');
+
         }, child: Text("LOG OUT"),
         
       ),
