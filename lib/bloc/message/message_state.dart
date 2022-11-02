@@ -36,7 +36,7 @@ class MessageError extends MessageState{
 }
 
 class MessageListLoaded extends MessageState {
-  final MessageTile message;
+  final List<MessageTile> message;
 
   MessageListLoaded({required this.message});
   @override

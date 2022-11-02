@@ -72,23 +72,28 @@ class _MessagePageState extends State<MessagePage> {
                       shape: BoxShape.circle, width: 30, height: 30),
                 );
               }
-              return CachedNetworkImage(
-                imageUrl: cubit.currentUser.avatarURL,
-                cacheKey: cubit.currentUser.avatarURL,
-                errorWidget: (
-                  BuildContext context,
-                  String url,
-                  dynamic error,
-                ) {
-                  return CircleAvatar(
-                    child: Text(cubit.currentUser.fullName[0]),
-                  );
+              return GestureDetector(
+                onTap: () {
+                  context.router.pushNamed("/setting-page");
                 },
-                imageBuilder: (context, imageProvider) {
-                  return CircleAvatar(
-                    backgroundImage: imageProvider,
-                  );
-                },
+                child: CachedNetworkImage(
+                  imageUrl: cubit.currentUser.avatarURL,
+                  cacheKey: cubit.currentUser.avatarURL,
+                  errorWidget: (
+                    BuildContext context,
+                    String url,
+                    dynamic error,
+                  ) {
+                    return CircleAvatar(
+                      child: Text(cubit.currentUser.fullName[0]),
+                    );
+                  },
+                  imageBuilder: (context, imageProvider) {
+                    return CircleAvatar(
+                      backgroundImage: imageProvider,
+                    );
+                  },
+                ),
               );
             },
           )
@@ -109,7 +114,7 @@ class _MessagePageState extends State<MessagePage> {
 
   Widget searchBar() {
     return CustomSearch(
-      onTap: (){
+      onTap: () {
         context.router.pushNamed("/search-page");
       },
       readOnly: true,
@@ -123,7 +128,7 @@ class _MessagePageState extends State<MessagePage> {
           cubit.userList = state.userList;
         }
       },
-      buildWhen: (prev, cur) => prev != cur && cur is MessageOnlineUserLoaded,
+      buildWhen: (prev, cur) => cur is MessageOnlineUserLoaded,
       builder: (context, state) {
         if (state is MessageOnlineUserLoading) {
           return const CircularProgressIndicator();
@@ -156,21 +161,7 @@ class _MessagePageState extends State<MessagePage> {
     return BlocConsumer<MessageCubit, MessageState>(
       listener: (context, state) {
         if (state is MessageListLoaded) {
-          if (state.message.id != null) {
-            int found = -1;
-            for (int i = 0; i < cubit.messageList.length; i++) {
-              if (cubit.messageList[i].id == state.message.id) {
-                found = i;
-                break;
-              }
-            }
-            if (found == -1) {
-              cubit.messageList.add(state.message);
-            } else {
-              cubit.messageList.removeAt(found);
-              cubit.messageList.insert(0, state.message);
-            }
-          }
+          cubit.messageList = state.message;
         } else if (state is MessageListDelete) {
           for (var element in cubit.messageList) {
             if (element.id == state.message) {
@@ -232,8 +223,8 @@ class _MessagePageState extends State<MessagePage> {
                       Expanded(
                           flex: 3,
                           child: Text(
-                            "08:24 AM",
-                            style: subtitle,
+                            cubit.messageList[index].date ?? "",
+                            style: subtitle.copyWith(fontSize: 12),
                             textAlign: TextAlign.end,
                           ))
                     ],

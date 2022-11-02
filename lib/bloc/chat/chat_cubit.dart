@@ -83,7 +83,10 @@ class ChatCubit extends Cubit<ChatState> {
     try {
       await firebaseFirestore
           .collection("chat")
-          .where('users', isEqualTo: {userModel.id: null, currentUser.id: null})
+          .where('users', isEqualTo: [
+            {userModel.id: null},
+            {currentUser.id: null}
+          ])
           .limit(1)
           .get()
           .then(
@@ -92,7 +95,10 @@ class ChatCubit extends Cubit<ChatState> {
                 chatID = querySnapshot.docs.single.id;
               } else {
                 await firebaseFirestore.collection("chat").add({
-                  'users': {userModel.id: null, currentUser.id: null},
+                  'users': [
+                    {userModel.id: null},
+                    {currentUser.id: null}
+                  ],
                   'createAt': FieldValue.serverTimestamp(),
                 }).then((value) => {chatID = value.id});
                 await firebaseFirestore
@@ -116,6 +122,7 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> sendMessage(types.PartialText message) async {
+    var createAt = FieldValue.serverTimestamp();
     try {
       FieldValue.serverTimestamp();
       firebaseFirestore
@@ -133,7 +140,7 @@ class ChatCubit extends Cubit<ChatState> {
         await firebaseFirestore
             .collection("chat")
             .doc(chatID)
-            .update({"last_message": response.data()});
+            .update({"last_message": response.data(), "createAt": createAt});
       });
       emit(ChatInitial());
     } catch (e) {
@@ -381,6 +388,7 @@ class ChatCubit extends Cubit<ChatState> {
     if (type == "video") {
       info = await getThumbnail(file);
     }
+    var createAt = FieldValue.serverTimestamp();
 
     await uploadTask.then((res) {
       res.ref.getDownloadURL().then((value) {
@@ -390,7 +398,7 @@ class ChatCubit extends Cubit<ChatState> {
             .collection('message')
             .add({
           if (type == "video") 'thumbnail': info["thumbnail"],
-          'createAt': FieldValue.serverTimestamp(),
+          'createAt': createAt,
           'msg': "${type.toUpperCase()}!! Click to see",
           'type': type,
           'messageID': generateRandomString(10),
@@ -404,7 +412,7 @@ class ChatCubit extends Cubit<ChatState> {
           await firebaseFirestore
               .collection("chat")
               .doc(chatID)
-              .update({"last_message": response.data()});
+              .update({"last_message": response.data(), 'createAt': createAt});
         });
       });
     });

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+import 'package:intl/intl.dart';
 
 import '../../data/model/user.dart';
 
@@ -14,20 +15,21 @@ part 'message_state.dart';
 class MessageCubit extends Cubit<MessageState> {
   late UserModel currentUser;
 
-  MessageCubit() : super(MessageInitial());
   List<UserModel> userList = [];
   List<MessageTile> messageList = [];
   Timer? timer;
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   StreamSubscription<QuerySnapshot>? streamSub;
 
+  MessageCubit() : super(MessageInitial());
+
   Future<void> init() async {
     emit(MessageLoading());
     var box = await Hive.openBox("box");
     currentUser = await box.get("user");
     emit(MessageInitial());
-    getMessageList();
     getUserOnlineList().then((value) {
+      getMessageList();
       timer = Timer.periodic(const Duration(seconds: 30), (timer) {
         getUserOnlineList();
       });
@@ -38,10 +40,12 @@ class MessageCubit extends Cubit<MessageState> {
     try {
       var response = await firebaseFirestore
           .collection("chat")
-          .doc(msg.id).collection("users").doc(currentUser.id).delete()
+          .doc(msg.id)
+          .collection("users")
+          .doc(currentUser.id)
+          .delete()
           .timeout(const Duration(seconds: 30));
       messageList.remove(msg);
-
     } catch (e) {
       if (e is FirebaseException) {
         print(e.message);
@@ -50,69 +54,144 @@ class MessageCubit extends Cubit<MessageState> {
   }
 
   Future<void> getMessageList() async {
-    try {
-      // var data = await firebaseFirestore
-      //     .collection("chat").orderBy("createAt").where('users.${currentUser.id}', isNull: true).get();
-      // for (var element in data.docChanges) {
-      //   print(element.doc.data());
-      // }
+    // try {
+    List<MessageTile> msgList = [];
 
-      streamSub = firebaseFirestore
-          .collection("chat")
-          .where('users.${currentUser.id}', isNull: true)
-          .snapshots()
-          .listen((event) async {
-        for (var element in event.docChanges) {
-          if (element.type == DocumentChangeType.removed) {
-            emit(MessageListDelete(message: element.doc.id));
-          } else if (element.type == DocumentChangeType.added ||
-              element.type == DocumentChangeType.modified) {
-            print(element.doc.data());
-            if (element.doc.data()?["last_message"] != null) {
-              var message = element.doc.data()?["last_message"];
-              Map receiver = element.doc.data()?["users"];
-              receiver.remove(currentUser.id);
-              UserModel? parsedUser = userList.firstWhere(
-                  (element) => element.id == receiver.keys.first,
-                  orElse: () => UserModel());
+    var data = await firebaseFirestore
+        .collection("chat")
+        .where('users', arrayContainsAny: [
+          {currentUser.id: null}
+        ])
+        .orderBy("createAt", descending: true)
+        .limit(10)
+        .get();
+    for (var element in data.docs) {
+      if (element.data().containsKey("last_message")) {
+        var data = element.data();
+        var message = data["last_message"];
+        var listUser = data["users"] as List;
+        Map guest = listUser.first == {currentUser.id: null}
+            ? listUser.last
+            : listUser.first;
 
-              if (parsedUser.id.isEmpty) {
-                var author = await firebaseFirestore
-                    .collection("users")
-                    .doc(receiver.keys.first)
-                    .get();
+        UserModel parsedUser = userList.firstWhere(
+            (element) => element.id == guest.keys.first,
+            orElse: () => UserModel());
 
-                parsedUser = UserModel.fromJson(author.data() ?? {});
-                for (int i = 0; i < userList.length; i++) {
-                  if (userList[i] == author.data()?["id"]) {
-                    userList[i] = parsedUser;
-                    emit(MessageOnlineUserLoaded(userList: userList));
-                  }
-                }
-              }
+        if (parsedUser.id.isEmpty) {
+          var author = await firebaseFirestore
+              .collection("users")
+              .doc(guest.keys.first)
+              .get();
 
-              MessageTile messageTile = MessageTile(
-                  id: element.doc.id,
-                  user: parsedUser,
-                  message: types.TextMessage(
-                      id: message["messageID"],
-                      author: types.User(
-                          id: message["sender"]["id"],
-                          lastName: message["sender"]["lastName"],
-                          imageUrl: message["imageURL"]),
-                      text: message["msg"]));
-
-              emit(MessageListLoaded(message: messageTile));
+          parsedUser = UserModel.fromJson(author.data() ?? {});
+          for (int i = 0; i < userList.length; i++) {
+            if (userList[i] == author.data()?["id"]) {
+              userList[i] = parsedUser;
+              emit(MessageOnlineUserLoaded(userList: userList));
             }
           }
         }
-      });
-    } catch (e) {
-      if (e is FirebaseException) {
-        streamSub?.cancel();
-        emit(MessageError(error: e.message.toString()));
+
+        // print(DateFormat('dd-MM-yyyy – kk:mm')
+        //     .format(DateTime.parse(data["createAt"].toDate().toString())));
+        //
+        // print(DateTime.now().month);
+
+        MessageTile messageTile = MessageTile(
+            id: element.id,
+            user: parsedUser,
+            message: types.TextMessage(
+                id: message["messageID"],
+                author: types.User(
+                    id: message["sender"]["id"],
+                    lastName: message["sender"]["lastName"],
+                    imageUrl: message["sender"]["imageUrl"]),
+                text: message["msg"]),
+            date: DateFormat('kk:mm dd-MM-yyyy')
+                .format(DateTime.parse(data["createAt"].toDate().toString())));
+
+        msgList.add(messageTile);
       }
     }
+    emit(MessageListLoaded(message: msgList));
+
+    streamSub = firebaseFirestore
+        .collection("chat")
+        .where('users', arrayContainsAny: [
+          {currentUser.id: null}
+        ])
+        .orderBy("createAt", descending: true)
+        .snapshots()
+        .listen((event) async {
+          for (var element in event.docChanges) {
+            if (element.type == DocumentChangeType.removed) {
+              emit(MessageListDelete(message: element.doc.id));
+            } else if (element.type == DocumentChangeType.modified &&
+                !element.doc.metadata.hasPendingWrites) {
+              var data = element.doc.data() ?? {};
+              if (data.containsKey("last_message")) {
+                var message = data["last_message"];
+                var listUser = data["users"] as List;
+                Map guest = listUser.first == {currentUser.id: null}
+                    ? listUser.last
+                    : listUser.first;
+
+                UserModel parsedUser = userList.firstWhere(
+                    (element) => element.id == guest.keys.first,
+                    orElse: () => UserModel());
+
+                if (parsedUser.id.isEmpty) {
+                  var author = await firebaseFirestore
+                      .collection("users")
+                      .doc(guest.keys.first)
+                      .get();
+
+                  parsedUser = UserModel.fromJson(author.data() ?? {});
+                  for (int i = 0; i < userList.length; i++) {
+                    if (userList[i] == author.data()?["id"]) {
+                      userList[i] = parsedUser;
+                      emit(MessageOnlineUserLoaded(userList: userList));
+                    }
+                  }
+                }
+
+                MessageTile messageTile = MessageTile(
+                    id: element.doc.id,
+                    user: parsedUser,
+                    date: DateFormat('kk:mm dd-MM-yyyy').format(
+                        DateTime.parse(data["createAt"].toDate().toString())),
+                    message: types.TextMessage(
+                        id: message["messageID"],
+                        author: types.User(
+                            id: message["sender"]["id"],
+                            lastName: message["sender"]["lastName"],
+                            imageUrl: message["sender"]["imageUrl"]),
+                        text: message["msg"]));
+
+                MessageTile existed = messageList.firstWhere(
+                    (element) => element.id == messageTile.id,
+                    orElse: () => MessageTile());
+                if (existed.id!.isNotEmpty) {
+                  messageList.remove(existed);
+                  messageList.insert(0, messageTile);
+                } else {
+                  messageList.insert(0, messageTile);
+                }
+
+                emit(MessageListLoaded(message: messageList));
+              }
+            }
+          }
+        });
+    // } catch (e) {
+    //   if (e is FirebaseException) {
+    //     streamSub?.cancel();
+    //     emit(MessageError(error: e.message.toString()));
+    //   } else {
+    //     print(e.toString());
+    //   }
+    // }
   }
 
   Future<void> getUserOnlineList() async {
@@ -133,13 +212,18 @@ class MessageCubit extends Cubit<MessageState> {
         if (friend.data()!["_is_online"]) {
           tempList.add(UserModel.fromJson(friend.data() ?? {}));
         }
-        MessageTile? us = messageList.firstWhere(
-            (e) => element.id == e.user!.id,
-            orElse: () => MessageTile());
-        if (us.id != null) {
-          us.user?.isOnline = friend.data()!["_is_online"];
-          emit(MessageListLoaded(message: us));
-        }
+
+
+       // print( messageList.indexWhere((e) => e.user?.id == element.id));
+
+        // MessageTile? us = messageList.firstWhere(
+        //     (e) => element.id == e.user!.id,
+        //     orElse: () => MessageTile());
+        // if (us.id != null) {
+        //   us.user?.isOnline = friend.data()!["_is_online"];
+        //
+        //   // emit(MessageListLoaded(message: us));
+        // }
       }
     } catch (e) {
       if (e is FirebaseException) {
@@ -149,6 +233,7 @@ class MessageCubit extends Cubit<MessageState> {
         print(e.toString());
       }
     }
+    userList = tempList;
     emit(MessageOnlineUserLoaded(userList: tempList));
   }
 }
