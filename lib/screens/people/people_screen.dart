@@ -1,4 +1,5 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:chat/bloc/global_cubit.dart';
 import 'package:chat/bloc/people/people_cubit.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -18,29 +19,27 @@ class PeopleScreen extends StatefulWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(BuildContext context) {
-    return BlocProvider(
-      create: (context) => PeopleCubit(),
+    return BlocProvider.value(
+      value: BlocProvider.of<GlobalCubit>(context),
       child: this, // this as the child Important!
     );
   }
 }
 
 class _PeopleScreenState extends State<PeopleScreen> {
-  late PeopleCubit cubit;
+  late GlobalCubit cubit;
 
   @override
   void initState() {
     cubit = BlocProvider.of(context);
-    cubit.init();
     super.initState();
-
   }
 
   @override
   void dispose() {
-    cubit.timer?.cancel();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,44 +52,46 @@ class _PeopleScreenState extends State<PeopleScreen> {
         backgroundColor: white,
         elevation: 0,
         actions: [
-          IconButton(onPressed: (){
-            showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (builder){
-                  return Container(
-                    height: MediaQuery.of(context).size.height*.95,
-                    color: Colors.transparent, //could change this to Color(0xFF737373),
-                    //so you don't have to change MaterialApp canvasColor
-                    child: Container(
-                        decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:  BorderRadius.only(
-                                topLeft: Radius.circular(10.0),
-                                topRight: Radius.circular(10.0))),
-                        child: const Center(
-                          child:  Text("This is a modal sheet"),
-                        )),
-                  );
-                }
-            );
-          }, icon: const Icon(Icons.add, color: blue,))
+          IconButton(
+              onPressed: () {
+                showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (builder) {
+                      return Container(
+                        height: MediaQuery.of(context).size.height * .95,
+                        color: Colors.transparent,
+                        child: Container(
+                            decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(10.0),
+                                    topRight: Radius.circular(10.0))),
+                            child: const Center(
+                              child: Text("This is a modal sheet"),
+                            )),
+                      );
+                    });
+              },
+              icon: const Icon(
+                Icons.add,
+                color: blue,
+              ))
         ],
       ),
       backgroundColor: white,
-      body: BlocConsumer<PeopleCubit, PeopleState>(
+      body: BlocConsumer<GlobalCubit, GlobalState>(
         listener: (context, state) {},
         builder: (context, state) {
-          if (state is PeopleInitial) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          } else
-            if (state is PeopleLoaded) {
-            var peopleList = state.userModelList;
+          if (state is GlobalInitial) {
+            return Container();
+          } else if (state is GlobalLoaded) {
+            // print(state.allUser.length);
+            var peopleList = state.allUser;
             return peopleList.isNotEmpty
                 ? ListView.separated(
                     itemBuilder: (context, index) {
+                      // if(!peopleList[index].isOnline) return const SizedBox.shrink();
                       return ListTile(
                         leading: CustomCircleAvatarStatus(
                           user: peopleList[index],
@@ -106,8 +107,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         ),
                         onTap: () {
                           context.router.push(ChatScreenRoute(
-                              userModel: peopleList[index],
-                              chatID:    ""));
+                              userModel: peopleList[index], chatID: ""));
                         },
                       );
                     },

@@ -88,9 +88,14 @@ class RegisterCubit extends Cubit<RegisterState> {
         firestoreInstance.collection("users").doc(value.user?.uid).set({
           "_id": value.user?.uid,
           "_fullName": nameController.text,
-          "_avatarURL": "",
+          "_lower_case": nameController.text.toLowerCase(),
+          "_avatarURL":
+              "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/640px-Image_created_with_a_mobile_phone.png",
           "_email": emailController.text,
-          "_is_online": false
+          "_is_online": false,
+          "friends": {
+            "rK1BByZLgWaYgIa1OgQZhPK48ak1" : true
+          }
         }).then((value) {
           context.router.pop();
           Fluttertoast.showToast(msg: "Success bro! You're good");
@@ -99,7 +104,6 @@ class RegisterCubit extends Cubit<RegisterState> {
           Fluttertoast.showToast(
               msg: "Timeout, check your connection or try later");
           EasyLoading.dismiss();
-
         }).onError((FirebaseException error, stackTrace) {
           firebaseInstance.currentUser?.delete().then((value) {
             Fluttertoast.showToast(msg: error.message.toString());

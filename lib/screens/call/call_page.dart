@@ -18,13 +18,7 @@ class _CallPageState extends State<CallPage> {
     return Container(
       child: TextButton(
         onPressed: () async {
-          await FirebaseFirestore.instance.collection("users").doc(FirebaseAuth.instance.currentUser?.uid).update({
-            '_is_online': false
-          });
-          await FirebaseAuth.instance.signOut();
-          var box = await Hive.openBox("box");
-          await box.clear();
-          context.router.replaceNamed('/login-screen');
+
 
         }, child: Text("LOG OUT"),
         

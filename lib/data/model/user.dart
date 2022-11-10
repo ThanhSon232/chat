@@ -14,9 +14,10 @@ class UserModel extends HiveObject{
   String? _email;
   @HiveField(4)
   bool? _isOnline;
-
+  @HiveField(5)
+  Map? friends;
   UserModel(
-      [this._id, this._fullName, this._avatarURL, this._email, this._isOnline]);
+      [this._id, this._fullName, this._avatarURL, this._email, this._isOnline, this.friends]);
 
   UserModel.fromJson(Map<dynamic, dynamic> json) {
     _id = json['_id'];
@@ -24,6 +25,7 @@ class UserModel extends HiveObject{
     _avatarURL = json['_avatarURL'];
     _email = json['_email'];
     _isOnline = json['_is_online'];
+    friends = json['friends'];
   }
 
   Map<String, dynamic> toJson() {
@@ -33,6 +35,8 @@ class UserModel extends HiveObject{
     data['_avatarURL'] = _avatarURL;
     data['_email'] = _email;
     data['_is_online'] = _isOnline;
+    data['friends'] = friends;
+
     return data;
   }
 
@@ -46,6 +50,13 @@ class UserModel extends HiveObject{
   String get fullName => _fullName ?? "Anonymus";
 
   String get id => _id ?? "";
+
+
+
+
+  set avatarURL(String value) {
+    _avatarURL = value;
+  }
 
   set isOnline(bool? value) {
     _isOnline = value;

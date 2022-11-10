@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:bloc/bloc.dart';
 import 'package:chat/theme/color.dart';
 import 'package:dio/dio.dart';
@@ -29,6 +30,7 @@ class ChatCubit extends Cubit<ChatState> {
   TextEditingController msgController = TextEditingController();
   String chatID = "";
   StreamSubscription<QuerySnapshot>? streamSub;
+  // StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? accountSub;
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   GlobalKey key = GlobalKey();
@@ -38,8 +40,8 @@ class ChatCubit extends Cubit<ChatState> {
   bool isEnd = false;
   bool isShow = false;
   bool isNotFriend = false;
-
-  // bool isFirstTime = true;
+  bool isBlocked = false;
+  bool isBlockedByMe = false;
 
   ChatCubit() : super(ChatInitial());
 
@@ -52,34 +54,69 @@ class ChatCubit extends Cubit<ChatState> {
       lastName: currentUser.fullName,
       imageUrl: currentUser.avatarURL,
     );
-    if (id.isNotEmpty) {
-      chatID = id;
-      var response = await firebaseFirestore
-          .collection("users")
-          .doc(currentUser.id)
-          .collection("friends")
-          .doc(userModel.id)
-          .get();
-      if (response.data() == null) {
-        isNotFriend = true;
-      }
-    } else {
+
+    // if (id.isNotEmpty) {
+    //   chatID = id;
+    //   Map friends = currentUser.friends ?? {};
+    //   if (currentUser.id == userModel.id) {
+    //     isBlocked = true;
+    //   } else {
+    //     if (friends.containsKey(userModel.id) == false) {
+    //       isNotFriend = true;
+    //     }
+    //   }
+    // } else {
       await checkUser(userModel, currentUser);
-    }
+    // }
     await getMessage();
     emit(ChatInitial());
   }
 
   Future<void> acceptButton(UserModel userModel) async {
-    await firebaseFirestore
-        .collection("users")
-        .doc(user.id)
-        .collection("friends")
-        .doc(userModel.id)
-        .set({});
+    await firebaseFirestore.collection("users").doc(user.id).set({
+      "friends": {userModel.id: true}
+    }, SetOptions(merge: true));
+    var box = await Hive.openBox("box");
+    UserModel currentUser = await box.get("user");
+    currentUser.friends?.putIfAbsent(userModel.id, () => true);
+    await box.put("user", currentUser);
     isNotFriend = false;
     emit(ChatInitial());
   }
+
+  Future<void> cancelButton(UserModel userModel, BuildContext context) async {
+    await firebaseFirestore.collection("chat").doc(chatID).set({
+      "blocked": true,
+      "blockedBy": user.id
+
+    },SetOptions(merge: true));
+    await firebaseFirestore.collection("users").doc(user.id).set(
+        {
+          "friends": {
+            userModel.id: false
+          }
+        }, SetOptions(merge: true));
+    var box = await Hive.openBox("box");
+    UserModel currentUser = await box.get("user");
+    await currentUser.friends?.putIfAbsent(userModel.id, () => false);
+    await box.put("user", currentUser).then((value) {
+      context.router.pop();
+    });
+  }
+
+
+  Future<void> unblock() async{
+    await firebaseFirestore.collection("chat").doc(chatID).set({
+      "blocked": false,
+      "blockedBy": null
+    },SetOptions(merge: true));
+    isBlocked = false;
+    emit(ChatInitial());
+  }
+
+
+
+
 
   Future<void> checkUser(UserModel userModel, UserModel currentUser) async {
     try {
@@ -93,6 +130,9 @@ class ChatCubit extends Cubit<ChatState> {
             [
               {userModel.id: null},
               {currentUser.id: null}
+            ],
+            [
+              {userModel.id: null}
             ]
           ])
           .limit(1)
@@ -101,6 +141,21 @@ class ChatCubit extends Cubit<ChatState> {
             (QuerySnapshot querySnapshot) async {
               if (querySnapshot.docs.isNotEmpty) {
                 chatID = querySnapshot.docs.single.id;
+                Map friends = currentUser.friends ?? {};
+                if (currentUser.id == userModel.id) {
+                  isBlocked = true;
+                } else {
+                  if (friends.containsKey(userModel.id) == false) {
+                    isNotFriend = true;
+                  }
+                }
+                var data = querySnapshot.docs.first.data() as Map;
+                if(data["blocked"]){
+                  isBlocked = true;
+                  if(data["blockedBy"] == currentUser.id){
+                    isBlockedByMe = true;
+                  }
+                }
               } else {
                 await firebaseFirestore.collection("chat").add({
                   'users': [
@@ -108,13 +163,18 @@ class ChatCubit extends Cubit<ChatState> {
                     {currentUser.id: null}
                   ],
                   'createAt': FieldValue.serverTimestamp(),
+                  "blocked": false
                 }).then((value) => {chatID = value.id});
+                isNotFriend = false;
                 await firebaseFirestore
                     .collection("users")
                     .doc(currentUser.id)
-                    .collection("friends")
-                    .doc(userModel.id)
-                    .set({});
+                    .set({
+                  "friends": {userModel.id: true}
+                }, SetOptions(merge: true));
+                var box = await Hive.openBox("box");
+                currentUser.friends?.putIfAbsent(userModel.id, () => true);
+                await box.put("user", currentUser);
               }
             },
           );
@@ -177,6 +237,7 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> getMessage() async {
+
     streamSub = firebaseFirestore
         .collection("chat")
         .doc(chatID)
@@ -224,7 +285,7 @@ class ChatCubit extends Cubit<ChatState> {
               : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
           size: change.doc.data()!["size"],
           name: change.doc.data()!["name"],
-          metadata: {"key": GlobalKey()},
+          metadata: {"key": GlobalKey(), "aspect_ratio": change.doc.data()?["aspect_ratio"] ?? 9/16},
           uri: change.doc.data()!["uri"]);
     } else if (change.doc.data()?["type"] == "video") {
       return types.CustomMessage(
@@ -368,6 +429,7 @@ class ChatCubit extends Cubit<ChatState> {
 
   Future<void> sendPicture(String type) async {
     XFile? file = await _picker.pickImage(
+      imageQuality: 50,
         source: type == "gallery" ? ImageSource.gallery : ImageSource.camera);
     if (file != null) {
       await uploadToStorage("image", file);
@@ -376,6 +438,7 @@ class ChatCubit extends Cubit<ChatState> {
 
   Future<void> sendVideo(String type) async {
     XFile? file = await _picker.pickVideo(
+      maxDuration: const Duration(seconds: 30),
         source: type == "gallery" ? ImageSource.gallery : ImageSource.camera);
     if (file != null) {
       uploadToStorage("video", file);
@@ -386,10 +449,7 @@ class ChatCubit extends Cubit<ChatState> {
     Reference ref = _storage.ref("$type/${file.name}");
     File newFile = File(file.path);
     UploadTask uploadTask = ref.putFile(newFile);
-    Map info = {};
-    if (type == "video") {
-      info = await getThumbnail(file);
-    }
+    Map info = await getThumbnail(file, type);
     var createAt = FieldValue.serverTimestamp();
 
     await uploadTask.then((res) {
@@ -408,7 +468,7 @@ class ChatCubit extends Cubit<ChatState> {
           'name': file.name,
           'size': File(file.path).lengthSync(),
           'uri': value,
-          if (type == "video") 'aspect_ratio': info["width"] / info["height"]
+          'aspect_ratio': info["width"] / info["height"]
         }).then((value) async {
           var response = await value.get();
           await firebaseFirestore
@@ -420,26 +480,37 @@ class ChatCubit extends Cubit<ChatState> {
     });
   }
 
-  Future<Map<String, dynamic>> getThumbnail(XFile file) async {
+  Future<Map<String, dynamic>> getThumbnail(XFile file, String type) async {
     try {
-      final uint8list = await VideoThumbnail.thumbnailData(
-        video: file.path,
-        imageFormat: ImageFormat.JPEG,
-        quality: 25,
-      );
-      var fileName = "${generateRandomString(10)}.jpeg";
 
-      var decodedImage = await decodeImageFromList(uint8list!);
-      final tempDir = await getTemporaryDirectory();
-      File f = await File('${tempDir.path}/$fileName').create();
-      f.writeAsBytesSync(uint8list);
-      Reference ref = _storage.ref("/thumbnail/$fileName");
-      UploadTask uploadTask = ref.putFile(f);
-      await uploadTask.timeout(const Duration(seconds: 30));
-      var link = await ref.getDownloadURL();
+
+      if(type == "video") {
+        final uint8list = await VideoThumbnail.thumbnailData(
+          video: file.path,
+          imageFormat: ImageFormat.JPEG,
+          quality: 25,
+        );
+        var fileName = "${generateRandomString(10)}.jpeg";
+        var decodedImage = await decodeImageFromList(uint8list!);
+        final tempDir = await getTemporaryDirectory();
+        File f = await File('${tempDir.path}/$fileName').create();
+        f.writeAsBytesSync(uint8list);
+        Reference ref = _storage.ref("/thumbnail/$fileName");
+        UploadTask uploadTask = ref.putFile(f);
+        await uploadTask.timeout(const Duration(seconds: 30));
+        var link = await ref.getDownloadURL();
+        return {
+          "thumbnail": link,
+          "width": decodedImage.width,
+          "height": decodedImage.height
+        };
+      }
+
+      var decodedImage = await decodeImageFromList(await file.readAsBytes());
+
+
 
       return {
-        "thumbnail": link,
         "width": decodedImage.width,
         "height": decodedImage.height
       };

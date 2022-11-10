@@ -75,8 +75,10 @@ class LoginCubit extends Cubit<LoginState> {
             .doc(user.user?.uid).get();
 
 
+        UserModel userModel = UserModel.fromJson(response.data() ?? {});
+
         var box = await Hive.openBox("box");
-        await box.put("user", UserModel.fromJson(response.data() ?? {}));
+        await box.put("user", userModel);
 
         Fluttertoast.showToast(msg: "Login successfully").then((value){
           context.router.replaceNamed("/");

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:better_player/better_player.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat/bloc/chat/chat_cubit.dart';
 import 'package:chat/data/model/user.dart';
 import 'package:chat/theme/dimension.dart';
@@ -110,11 +111,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   onEndReached: () async {
                     await cubit.loadMore();
                   },
+                  // imageMessageBuilder: ,
                   customBottomWidget: customBottomWidget(),
                   customMessageBuilder: customMessageBuilder),
             );
           },
         ));
+  }
+
+  Widget imageBuilder(types.ImageMessage image, {required int messageWidth}) {
+    return CachedNetworkImage(
+      imageUrl: image.uri,
+      key: Key(image.name),
+      placeholder: (context, str) {
+        return AspectRatio(aspectRatio: image.metadata!["aspect_ratio"], child: Container(color: grey,),);
+      },
+    );
   }
 
   void onLongPress(types.Message message) {
@@ -282,111 +294,160 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget customBottomWidget() {
-    return cubit.isNotFriend
+    return cubit.isBlocked
         ? Align(
             alignment: Alignment.topCenter,
             child: Container(
-              width: MediaQuery.of(context).size.width,
-              height: size_200_h,
-              padding: const EdgeInsets.all(10),
-              margin: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: grey_100, borderRadius: BorderRadius.circular(16)),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CustomCircleAvatarStatus(user: widget.userModel),
-                  SizedBox(
-                    height: size_5_h,
-                  ),
-                  Text(
-                    widget.userModel.fullName,
-                    style: header,
-                  ),
-                  SizedBox(
-                    height: size_5_h,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                width: MediaQuery.of(context).size.width,
+                height: size_200_h,
+                padding: const EdgeInsets.all(10),
+                margin: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                    color: grey_100, borderRadius: BorderRadius.circular(16)),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CustomCircleAvatarStatus(user: widget.userModel),
+                    SizedBox(
+                      height: size_5_h,
+                    ),
+                    Text(
+                      widget.userModel.fullName,
+                      style: header,
+                    ),
+                    SizedBox(
+                      height: size_5_h,
+                    ),
+                    cubit.isBlockedByMe
+                        ? SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              child: const Text("Unblock"),
+                              onPressed: () async {
+                                await cubit.unblock();
+                              },
+                            ),
+                          )
+                        : Text(
+                            "Blocked",
+                            style: title,
+                          ),
+                  ],
+                )),
+          )
+        : (cubit.isNotFriend
+            ? Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: size_200_h,
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: grey_100, borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      TextButton(onPressed: () async{
-                        cubit.acceptButton(widget.userModel);
-                      }, child: const Text("Accept")),
-                      TextButton(onPressed: () {}, child: const Text("Block"))
-                    ],
-                  )
-                ],
-              ),
-            ),
-          )
-        : SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Row(
-                children: [
-                  Flexible(
-                      flex: 4,
-                      child: Row(
+                      CustomCircleAvatarStatus(user: widget.userModel),
+                      SizedBox(
+                        height: size_5_h,
+                      ),
+                      Text(
+                        widget.userModel.fullName,
+                        style: header,
+                      ),
+                      SizedBox(
+                        height: size_5_h,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.attach_file, color: blue),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                              onPressed: () {
-                                cubit.openCameraSelector(context);
+                          TextButton(
+                              onPressed: () async {
+                                cubit.acceptButton(widget.userModel);
                               },
-                              key: cubit.secondKey,
-                              icon: const Icon(
-                                Icons.camera_alt,
-                                color: blue,
-                              )),
-                          IconButton(
-                            key: cubit.key,
-                            icon: const Icon(Icons.perm_media_outlined,
-                                color: blue),
-                            onPressed: () {
-                              cubit.openMediaSelector(context);
-                            },
-                          ),
+                              child: const Text("Accept")),
+                          TextButton(
+                              onPressed: () async {
+                                cubit.cancelButton(widget.userModel, context);
+                              },
+                              child: const Text("Block"))
                         ],
-                      )),
-                  Flexible(
-                      flex: 5,
-                      child: TextFormField(
-                        controller: cubit.msgController,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 10),
-                          filled: true,
-                          hintText: "Type your message...",
-                          fillColor: grey_100,
-                          border: OutlineInputBorder(
-                              gapPadding: 0,
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                      )),
-                  Flexible(
-                      flex: 1,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.send,
-                          color: blue,
-                        ),
-                        onPressed: () async {
-                          if (cubit.msgController.text.isNotEmpty) {
-                            await cubit.sendMessage(types.PartialText(
-                                text: cubit.msgController.text));
-                            cubit.msgController.clear();
-                          }
-                        },
-                      ))
-                ],
-              ),
-            ),
-          );
+                      )
+                    ],
+                  ),
+                ),
+              )
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Row(
+                    children: [
+                      Flexible(
+                          flex: 4,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.attach_file, color: blue),
+                                onPressed: () {},
+                              ),
+                              IconButton(
+                                  onPressed: () {
+                                    cubit.openCameraSelector(context);
+                                  },
+                                  key: cubit.secondKey,
+                                  icon: const Icon(
+                                    Icons.camera_alt,
+                                    color: blue,
+                                  )),
+                              IconButton(
+                                key: cubit.key,
+                                icon: const Icon(Icons.perm_media_outlined,
+                                    color: blue),
+                                onPressed: () {
+                                  cubit.openMediaSelector(context);
+                                },
+                              ),
+                            ],
+                          )),
+                      Flexible(
+                          flex: 5,
+                          child: TextFormField(
+                            controller: cubit.msgController,
+                            autofocus: true,
+                            decoration: InputDecoration(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              filled: true,
+                              hintText: "Type your message...",
+                              fillColor: grey_100,
+                              border: OutlineInputBorder(
+                                  gapPadding: 0,
+                                  borderRadius: BorderRadius.circular(16)),
+                            ),
+                          )),
+                      Flexible(
+                          flex: 1,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.send,
+                              color: blue,
+                            ),
+                            onPressed: () async {
+                              if (cubit.msgController.text.isNotEmpty) {
+                                await cubit.sendMessage(types.PartialText(
+                                    text: cubit.msgController.text));
+                                cubit.msgController.clear();
+                              }
+                            },
+                          ))
+                    ],
+                  ),
+                ),
+              ));
   }
 }

@@ -23,17 +23,11 @@ class MessageCubit extends Cubit<MessageState> {
 
   MessageCubit() : super(MessageInitial());
 
-  Future<void> init() async {
+  void init() async {
     emit(MessageLoading());
     var box = await Hive.openBox("box");
     currentUser = await box.get("user");
     emit(MessageInitial());
-    getUserOnlineList().then((value) {
-      getMessageList();
-      timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-        getUserOnlineList();
-      });
-    });
   }
 
   Future<void> deleteAllMessage(MessageTile msg) async {
@@ -53,9 +47,10 @@ class MessageCubit extends Cubit<MessageState> {
     }
   }
 
-  Future<void> getMessageList() async {
+  Future<void> getMessageList(List<UserModel> userList) async {
     List<MessageTile> msgList = [];
 
+    try{
     var data = await firebaseFirestore
         .collection("chat")
         .where('users', arrayContainsAny: [
@@ -76,26 +71,6 @@ class MessageCubit extends Cubit<MessageState> {
         UserModel parsedUser = userList.firstWhere(
             (element) => element.id == guest.keys.first,
             orElse: () => UserModel());
-
-        if (parsedUser.id.isEmpty) {
-          var author = await firebaseFirestore
-              .collection("users")
-              .doc(guest.keys.first)
-              .get();
-
-          parsedUser = UserModel.fromJson(author.data() ?? {});
-          for (int i = 0; i < userList.length; i++) {
-            if (userList[i] == author.data()?["id"]) {
-              userList[i] = parsedUser;
-              emit(MessageOnlineUserLoaded(userList: userList));
-            }
-          }
-        }
-
-        // print(DateFormat('dd-MM-yyyy – kk:mm')
-        //     .format(DateTime.parse(data["createAt"].toDate().toString())));
-        //
-        // print(DateTime.now().month);
 
         MessageTile messageTile = MessageTile(
             id: element.id,
@@ -124,6 +99,9 @@ class MessageCubit extends Cubit<MessageState> {
         .snapshots()
         .listen((event) async {
           for (var element in event.docChanges) {
+            // print(element.doc.reference);
+            // print(element.type);
+
             if (element.type == DocumentChangeType.removed) {
               emit(MessageListDelete(message: element.doc.id));
             } else if (element.type == DocumentChangeType.modified &&
@@ -136,7 +114,6 @@ class MessageCubit extends Cubit<MessageState> {
                     ? listUser.last
                     : listUser.first;
 
-                print(guest);
 
                 UserModel parsedUser = userList.firstWhere(
                     (element) => element.id == guest.keys.first,
@@ -184,55 +161,14 @@ class MessageCubit extends Cubit<MessageState> {
           }
           emit(MessageListLoaded(message: messageList));
         });
-    // } catch (e) {
-    //   if (e is FirebaseException) {
-    //     streamSub?.cancel();
-    //     emit(MessageError(error: e.message.toString()));
-    //   } else {
-    //     print(e.toString());
-    //   }
-    // }
-  }
-
-  Future<void> getUserOnlineList() async {
-    emit(MessageOnlineUserLoading());
-    List<UserModel> tempList = [];
-    try {
-      var snapshot = await firebaseFirestore
-          .collection("users")
-          .doc(currentUser.id)
-          .collection("friends")
-          .limit(20)
-          .get()
-          .timeout(const Duration(seconds: 30));
-
-      for (var element in snapshot.docs) {
-        var friend =
-            await firebaseFirestore.collection("users").doc(element.id).get();
-        if (friend.data()!["_is_online"]) {
-          tempList.add(UserModel.fromJson(friend.data() ?? {}));
-        }
-
-        // print( messageList.indexWhere((e) => e.user?.id == element.id));
-
-        // MessageTile? us = messageList.firstWhere(
-        //     (e) => element.id == e.user!.id,
-        //     orElse: () => MessageTile());
-        // if (us.id != null) {
-        //   us.user?.isOnline = friend.data()!["_is_online"];
-        //
-        //   // emit(MessageListLoaded(message: us));
-        // }
-      }
     } catch (e) {
       if (e is FirebaseException) {
-        timer?.cancel();
+        streamSub?.cancel();
         emit(MessageError(error: e.message.toString()));
       } else {
         print(e.toString());
       }
     }
-    userList = tempList;
-    emit(MessageOnlineUserLoaded(userList: tempList));
   }
+
 }
