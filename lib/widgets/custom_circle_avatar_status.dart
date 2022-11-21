@@ -9,8 +9,9 @@ import '../theme/dimension.dart';
 class CustomCircleAvatarStatus extends StatelessWidget {
   final UserModel user;
   final double? radius;
+  final bool? onOff;
 
-  const CustomCircleAvatarStatus({Key? key, required this.user, this.radius})
+  const CustomCircleAvatarStatus({Key? key, required this.user, this.radius, this.onOff})
       : super(key: key);
 
   @override
@@ -44,7 +45,7 @@ class CustomCircleAvatarStatus extends StatelessWidget {
           );
         },
       ),
-      if (user.isOnline)
+      if (user.isOnline && (onOff ?? true))
         Positioned.fill(
           top: size_30_h,
           left: size_40_w,

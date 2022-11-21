@@ -10,6 +10,7 @@ import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:meta/meta.dart';
@@ -36,7 +37,6 @@ class SettingCubit extends Cubit<SettingState> {
         .collection("users")
         .doc(FirebaseAuth.instance.currentUser?.uid)
         .update({'_is_online': false});
-
     await FirebaseAuth.instance.signOut();
     var box = await Hive.openBox("box");
     await box.clear();

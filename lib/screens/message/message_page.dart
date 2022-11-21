@@ -76,7 +76,6 @@ class _MessagePageState extends State<MessagePage> {
         elevation: 0,
         actions: [
           BlocBuilder<MessageCubit, MessageState>(
-            buildWhen: (prev, cur) => prev != cur && cur is MessageInitial,
             builder: (context, state) {
               if (state is MessageLoading) {
                 return const SkeletonAvatar(
@@ -189,6 +188,7 @@ class _MessagePageState extends State<MessagePage> {
             }
           },
           builder: (context, state) {
+            print(state);
             if (state is MessageListLoading || state is GlobalLoaded) {
               return const CircularProgressIndicator();
             } else if (state is MessageListLoaded) {

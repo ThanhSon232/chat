@@ -20,6 +20,7 @@ class GlobalCubit extends Cubit<GlobalState> {
   late StreamSubscription<QuerySnapshot<Map<String, dynamic>>> listener;
 
   void init() async {
+    emit(GlobalLoading());
     var box = await Hive.openBox("box");
     currentUser = await box.get("user");
     getUserOnlineList();

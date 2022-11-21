@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:chat/bloc/global_cubit.dart';
+import 'package:chat/screens/home/home.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -49,20 +50,21 @@ class _DashboardPageState extends State<DashboardPage>
       child: AutoTabsScaffold(
         routes: const [
           MessagePageRoute(),
-          // CallPageRoute(),
-          PeopleScreenRoute()
+          PeopleScreenRoute(),
+          HomePageRoute(),
         ],
         bottomNavigationBuilder: (_, tabsRouter) {
           return BottomNavigationBar(
             currentIndex: tabsRouter.activeIndex,
             onTap: tabsRouter.setActiveIndex,
             items: const [
+
               BottomNavigationBarItem(
                   icon: Icon(CupertinoIcons.chat_bubble_2), label: "Messages"),
-              // BottomNavigationBarItem(
-              //     icon: Icon(CupertinoIcons.phone), label: "Calls"),
               BottomNavigationBarItem(
                   icon: Icon(CupertinoIcons.person_2), label: "People"),
+              BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.home), label: "Home"),
             ],
           );
         },

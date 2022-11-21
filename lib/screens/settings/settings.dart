@@ -5,6 +5,7 @@ import 'package:chat/widgets/custom_circle_avatar_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../bloc/global_cubit.dart';
 import '../../theme/color.dart';
 import '../../theme/style.dart';
 
@@ -31,6 +32,11 @@ class _SettingPageState extends State<SettingPage> {
     cubit = BlocProvider.of(context);
     cubit.init();
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -64,8 +70,9 @@ class _SettingPageState extends State<SettingPage> {
                     title: Text("Log out", style: title.copyWith(color: black, fontSize: size_18_sp),),
                     onTap: () async{
                       await cubit.logout().then((value){
-                        context.router.pop();
-                        context.router.replaceNamed("/login-screen");
+                        context.router.pop().then((value){
+                          context.router.replaceNamed("/login-screen");
+                        });
                       });
                     },
                   )
