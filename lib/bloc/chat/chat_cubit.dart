@@ -163,7 +163,8 @@ class ChatCubit extends Cubit<ChatState> {
                     {currentUser.id: null}
                   ],
                   'createAt': FieldValue.serverTimestamp(),
-                  "blocked": false
+                  "blocked": false,
+                  "seen": false
                 }).then((value) => {chatID = value.id});
                 isNotFriend = false;
                 await firebaseFirestore
@@ -189,6 +190,14 @@ class ChatCubit extends Cubit<ChatState> {
         List.generate(len, (index) => r.nextInt(33) + 89));
   }
 
+  Future<void> setSeen() async{
+    if(user.id != messageList.first.author.id) {
+      await firebaseFirestore
+        .collection("chat")
+        .doc(chatID).update({"seen": true});
+    }
+  }
+
   Future<void> sendMessage(types.PartialText message) async {
     var createAt = FieldValue.serverTimestamp();
     try {
@@ -208,8 +217,10 @@ class ChatCubit extends Cubit<ChatState> {
         await firebaseFirestore
             .collection("chat")
             .doc(chatID)
-            .update({"last_message": response.data(), "createAt": createAt});
+            .update({"last_message": response.data(), "createAt": createAt, "seen": false});
       });
+
+
     } catch (e) {
       print(e.toString());
     }
@@ -237,7 +248,6 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> getMessage() async {
-
     streamSub = firebaseFirestore
         .collection("chat")
         .doc(chatID)
@@ -337,6 +347,8 @@ class ChatCubit extends Cubit<ChatState> {
           lastName: change.doc.data()?["sender"]["lastName"],
           imageUrl: change.doc.data()?["sender"]["imageURL"],
         ),
+        // showStatus: true,
+        // status: types.Status.delivered,
         createdAt: change.doc.data()!["createAt"] == null
             ? DateTime.now().millisecondsSinceEpoch
             : change.doc.data()!["createAt"].toDate().millisecondsSinceEpoch,
@@ -360,6 +372,7 @@ class ChatCubit extends Cubit<ChatState> {
   void showOverlay(BuildContext context,
       {required Offset position, required String type}) async {
     OverlayState? overlayState = Overlay.of(context);
+
     overlayEntry = OverlayEntry(builder: (context) {
       return Stack(
         children: [
@@ -474,7 +487,7 @@ class ChatCubit extends Cubit<ChatState> {
           await firebaseFirestore
               .collection("chat")
               .doc(chatID)
-              .update({"last_message": response.data(), 'createAt': createAt});
+              .update({"last_message": response.data(), 'createAt': createAt, 'seen': false});
         });
       });
     });

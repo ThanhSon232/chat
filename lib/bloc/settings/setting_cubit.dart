@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:bloc/bloc.dart';
+import 'package:chat/bloc/global_cubit.dart';
 import 'package:chat/data/model/user.dart';
 import 'package:chat/theme/color.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -35,6 +36,7 @@ class SettingCubit extends Cubit<SettingState> {
         .collection("users")
         .doc(FirebaseAuth.instance.currentUser?.uid)
         .update({'_is_online': false});
+
     await FirebaseAuth.instance.signOut();
     var box = await Hive.openBox("box");
     await box.clear();

@@ -32,7 +32,7 @@ class MessageCubit extends Cubit<MessageState> {
 
   Future<void> deleteAllMessage(MessageTile msg) async {
     try {
-      var response = await firebaseFirestore
+      await firebaseFirestore
           .collection("chat")
           .doc(msg.id)
           .collection("users")
@@ -68,15 +68,18 @@ class MessageCubit extends Cubit<MessageState> {
             ? listUser.last
             : listUser.first;
 
+
         UserModel parsedUser = userList.firstWhere(
             (element) => element.id == guest.keys.first,
             orElse: () => UserModel());
+        print(parsedUser.id);
 
         MessageTile messageTile = MessageTile(
             id: element.id,
             user: parsedUser,
             message: types.TextMessage(
                 id: message["messageID"],
+                status: message["sender"]["id"] == currentUser.id ? types.Status.sent : (data["seen"] ? types.Status.seen : types.Status.delivered),
                 author: types.User(
                     id: message["sender"]["id"],
                     lastName: message["sender"]["lastName"],
@@ -85,6 +88,7 @@ class MessageCubit extends Cubit<MessageState> {
             date: DateFormat('kk:mm dd-MM-yyyy')
                 .format(DateTime.parse(data["createAt"].toDate().toString())));
 
+        print(messageTile.message?.status);
         msgList.add(messageTile);
       }
     }
@@ -99,13 +103,11 @@ class MessageCubit extends Cubit<MessageState> {
         .snapshots()
         .listen((event) async {
           for (var element in event.docChanges) {
-            // print(element.doc.reference);
-            // print(element.type);
-
             if (element.type == DocumentChangeType.removed) {
               emit(MessageListDelete(message: element.doc.id));
             } else if (element.type == DocumentChangeType.modified &&
                 !element.doc.metadata.hasPendingWrites) {
+              print(element.doc.data());
               var data = element.doc.data() ?? {};
               if (data.containsKey("last_message")) {
                 var message = data["last_message"];
@@ -113,11 +115,10 @@ class MessageCubit extends Cubit<MessageState> {
                 Map guest = listUser.first.containsKey(currentUser.id)
                     ? listUser.last
                     : listUser.first;
-
-
                 UserModel parsedUser = userList.firstWhere(
                     (element) => element.id == guest.keys.first,
                     orElse: () => UserModel());
+
 
                 if (parsedUser.id.isEmpty) {
                   var author = await firebaseFirestore
@@ -141,6 +142,7 @@ class MessageCubit extends Cubit<MessageState> {
                         DateTime.parse(data["createAt"].toDate().toString())),
                     message: types.TextMessage(
                         id: message["messageID"],
+                        status: message["sender"]["id"] == currentUser.id ? types.Status.sent : (data["seen"] ? types.Status.seen : types.Status.delivered),
                         author: types.User(
                             id: message["sender"]["id"],
                             lastName: message["sender"]["lastName"],

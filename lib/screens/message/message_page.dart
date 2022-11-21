@@ -6,6 +6,7 @@ import 'package:chat/theme/dimension.dart';
 import 'package:chat/theme/style.dart';
 import 'package:chat/widgets/custom_circle_avatar.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
+import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:chat/widgets/custom_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -143,7 +144,7 @@ class _MessagePageState extends State<MessagePage> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemBuilder: (context, index) {
-                if(!onlineList[index].isOnline) return const SizedBox.shrink();
+                if (!onlineList[index].isOnline) return const SizedBox.shrink();
                 return GestureDetector(
                     onTap: () {
                       context.router.push(ChatScreenRoute(
@@ -153,7 +154,7 @@ class _MessagePageState extends State<MessagePage> {
               },
               itemCount: onlineList.length > 30 ? 30 : onlineList.length,
               separatorBuilder: (BuildContext context, int index) {
-                if(!onlineList[index].isOnline) return const SizedBox.shrink();
+                if (!onlineList[index].isOnline) return const SizedBox.shrink();
                 return SizedBox(
                   width: size_20_w,
                 );
@@ -169,7 +170,7 @@ class _MessagePageState extends State<MessagePage> {
   Widget messageList() {
     return BlocConsumer<GlobalCubit, GlobalState>(
       listener: (context, state) async {
-        if(state is GlobalLoaded){
+        if (state is GlobalLoaded) {
           await cubit.getMessageList(state.allUser);
         }
       },
@@ -232,14 +233,25 @@ class _MessagePageState extends State<MessagePage> {
                                   overflow: TextOverflow.ellipsis,
                                   style: title.copyWith(
                                       color: black,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: cubit.messageList[index]
+                                                      .message?.status ==
+                                                  types.Status.seen ||
+                                              cubit.messageList[index].message
+                                                      ?.status ==
+                                                  types.Status.sent
+                                          ? FontWeight.w500
+                                          : FontWeight.bold,
                                       fontSize: size_18_sp),
                                 )),
                             Expanded(
                                 flex: 3,
                                 child: Text(
                                   cubit.messageList[index].date ?? "",
-                                  style: subtitle.copyWith(fontSize: 12),
+                                  style: subtitle.copyWith(
+                                    fontSize: 12,
+                                    fontWeight: cubit.messageList[index].message?.status == types.Status.delivered
+                                        ? FontWeight.bold : FontWeight.w500
+                                  ),
                                   textAlign: TextAlign.end,
                                 ))
                           ],
@@ -249,17 +261,20 @@ class _MessagePageState extends State<MessagePage> {
                             Expanded(
                               flex: 9,
                               child: Text(
-                                "${cubit.messageList[index].message?.text ?? ""}",
-                                style: subtitle,
+                                "${cubit.messageList[index].message?.author.lastName ?? ""}: ${cubit.messageList[index].message?.text ?? ""}",
+                                style: subtitle.copyWith(
+                                  color: cubit.messageList[index].message?.status == types.Status.delivered ? black : grey,
+                                    fontWeight: cubit.messageList[index].message?.status == types.Status.delivered
+                                        ? FontWeight.bold : FontWeight.w500),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            // Expanded(
-                            //     flex: 1,
-                            //     child: CircleAvatar(
-                            //       radius: size_15_h,
-                            //       child: Text("2"),
-                            //     ))
+                            if (cubit.messageList[index].message?.status == types.Status.delivered)
+                              const Expanded(
+                                  flex: 1,
+                                  child: CircleAvatar(
+                                    radius: 5,
+                                  ))
                           ],
                         ),
                       ),

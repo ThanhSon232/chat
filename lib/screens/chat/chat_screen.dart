@@ -48,14 +48,21 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
-  void dispose() {
+  void deactivate() async {
+    await cubit.setSeen();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() async{
     super.dispose();
-    cubit.streamSub?.cancel();
+    await cubit.streamSub?.cancel();
     for (var element in cubit.messageList) {
       if (element.type == types.MessageType.custom) {
         element.metadata!["controller"].dispose();
       }
     }
+
   }
 
   @override
