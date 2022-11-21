@@ -2,12 +2,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:better_player/better_player.dart';
 import 'package:chat/bloc/new_posts/new_post_cubit.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
-
-import '../../bloc/global_cubit.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/model/user.dart';
 import '../../theme/color.dart';
 import '../../theme/dimension.dart';
@@ -15,7 +13,9 @@ import '../../theme/style.dart';
 
 class NewPostsPage extends StatefulWidget implements AutoRouteWrapper {
   final UserModel user;
-  const NewPostsPage({Key? key, required this.user}) : super(key: key);
+  final XFile? xFile;
+  final String? type;
+  const NewPostsPage({Key? key, required this.user, this.xFile, this.type}) : super(key: key);
 
   @override
   State<NewPostsPage> createState() => _NewPostsPageState();
@@ -40,7 +40,7 @@ class _NewPostsPageState extends State<NewPostsPage> {
   @override
   void initState() {
     cubit = BlocProvider.of<NewPostCubit>(context);
-    cubit.init(widget.user);
+    cubit.init(widget.user, widget.xFile, widget.type);
     super.initState();
   }
 
@@ -55,7 +55,7 @@ class _NewPostsPageState extends State<NewPostsPage> {
             color: black,
           ),
           onPressed: () {
-            context.router.pop();
+            context.router.pop({"result": false});
           },
         ),
         title: const Text(
@@ -67,7 +67,7 @@ class _NewPostsPageState extends State<NewPostsPage> {
           IconButton(
               onPressed: () async{
                await cubit.publish().then((value) {
-                 context.router.pop();
+                 context.router.pop({"result": true});
                });
               },
               icon: const Icon(

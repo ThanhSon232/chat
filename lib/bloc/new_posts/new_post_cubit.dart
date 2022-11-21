@@ -32,8 +32,14 @@ class NewPostCubit extends Cubit<NewPostState> {
         List.generate(len, (index) => r.nextInt(33) + 89));
   }
 
-  void init(UserModel current){
+  void init(UserModel current, XFile? file, String? type){
     userModel = current;
+    if(file != null && type != null){
+      xFile = file;
+      this.type = type;
+      emit(NewPostAdded(xFile: file, type: type));
+    }
+
   }
 
   Future<void> sendPicture(String type) async {
@@ -82,6 +88,7 @@ class NewPostCubit extends Cubit<NewPostState> {
           'comment': [],
           'caption': caption,
           'postID': id,
+          'likedByMe': false,
           'uploadBy': userModel!.id,
           'author': userModel?.toJson(),
           'name': file.name,
@@ -145,6 +152,7 @@ class NewPostCubit extends Cubit<NewPostState> {
       'type': type,
       'likes': [],
       'comment': [],
+      'likedByMe': false,
       'caption': textEditingController.text,
       'postID': id,
       'author': userModel?.toJson(),

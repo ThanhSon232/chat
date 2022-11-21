@@ -14,6 +14,7 @@
 import 'package:auto_route/auto_route.dart' as _i13;
 import 'package:flutter/cupertino.dart' as _i16;
 import 'package:flutter/material.dart' as _i14;
+import 'package:image_picker/image_picker.dart' as _i18;
 
 import 'data/model/user.dart' as _i17;
 import 'initial_route.dart' as _i15;
@@ -60,6 +61,8 @@ class AppRouter extends _i13.RootStackRouter {
             child: _i3.NewPostsPage(
           key: args.key,
           user: args.user,
+          xFile: args.xFile,
+          type: args.type,
         )),
         transitionsBuilder: _i13.TransitionsBuilders.slideBottom,
         opaque: true,
@@ -225,12 +228,16 @@ class NewPostsPageRoute extends _i13.PageRouteInfo<NewPostsPageRouteArgs> {
   NewPostsPageRoute({
     _i16.Key? key,
     required _i17.UserModel user,
+    _i18.XFile? xFile,
+    String? type,
   }) : super(
           NewPostsPageRoute.name,
           path: '/new-posts-page',
           args: NewPostsPageRouteArgs(
             key: key,
             user: user,
+            xFile: xFile,
+            type: type,
           ),
         );
 
@@ -241,15 +248,21 @@ class NewPostsPageRouteArgs {
   const NewPostsPageRouteArgs({
     this.key,
     required this.user,
+    this.xFile,
+    this.type,
   });
 
   final _i16.Key? key;
 
   final _i17.UserModel user;
 
+  final _i18.XFile? xFile;
+
+  final String? type;
+
   @override
   String toString() {
-    return 'NewPostsPageRouteArgs{key: $key, user: $user}';
+    return 'NewPostsPageRouteArgs{key: $key, user: $user, xFile: $xFile, type: $type}';
   }
 }
 

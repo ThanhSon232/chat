@@ -7,7 +7,7 @@ class Post {
   String? postID;
   Timestamp? createAt;
   String? convertedCreateAt;
-  List<String>? likes;
+  List<UserModel>? likes;
   List<String>? comment;
   String? caption;
   String? type;
@@ -17,6 +17,7 @@ class Post {
   String? name;
   double? aspectRatio;
   Map? metadata;
+  bool? likedByMe;
 
   Post(
       {this.author,
@@ -31,15 +32,21 @@ class Post {
         this.thumbnail,
         this.size,
         this.name,
+        this.likedByMe,
         this.aspectRatio});
 
   Post.fromJson(Map<String, dynamic> json) {
 
     author =  json['author'] != null ? UserModel.fromJson(json['author']) : null;
     postID = json['postID'];
+    likedByMe = json['likedByMe'];
     createAt = json['createAt'];
-    likes = json['likes'].cast<String>();
-    comment = json['comment'].cast<String>();
+    if (json['likes'] != null) {
+      likes = <UserModel>[];
+      json['likes'].forEach((v) {
+        likes!.add(UserModel.fromJson(v));
+      });
+    }    comment = json['comment'].cast<String>();
     caption = json['caption'];
     type = json['type'];
     uri = json['uri'];
@@ -52,11 +59,15 @@ class Post {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['author'] = this.author;
+    if (this.author != null) {
+      data['author'] = this.author!.toJson();
+    }
     data['uploadBy'] = this.uploadBy;
     data['postID'] = this.postID;
     data['createAt'] = this.createAt;
-    data['likes'] = this.likes;
+    if (this.likes != null) {
+      data['likes'] = this.likes!.map((v) => v.toJson()).toList();
+    }
     data['comment'] = this.comment;
     data['caption'] = this.caption;
     data['type'] = this.type;

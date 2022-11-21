@@ -15,14 +15,28 @@ class HomeLoading extends HomeState {
 
 }
 
+// class HomeLoaded extends HomeState {
+//   List<Post> posts;
+//
+//   HomeLoaded({required this.posts, required datetime});
+//
+//
+//
+//   @override
+//   List<Object> get props => [
+//     posts
+//   ];
+// }
+
 class HomeLoaded extends HomeState {
   List<Post> posts;
-
-  HomeLoaded({required this.posts});
+  DateTime datetime;
+  HomeLoaded({required this.posts, required this.datetime});
 
 
   @override
   List<Object> get props => [
-    posts
+    posts,
+    datetime
   ];
 }

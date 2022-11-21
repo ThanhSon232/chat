@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:meta/meta.dart';
 
 import '../../data/model/post.dart';
@@ -64,12 +65,46 @@ class HomeCubit extends Cubit<HomeState> {
       }
       post.add(temp);
     }
-    print(post.length);
-    emit(HomeLoaded(posts: post));
+    emit(HomeLoaded(posts: post, datetime: DateTime.now()));
   }
+
+  Future<XFile?> sendPicture() async {
+    XFile? file = await ImagePicker().pickImage(
+        imageQuality: 50,
+        source: ImageSource.gallery);
+    return file;
+  }
+
+  Future<XFile?> sendVideo() async {
+    XFile? file = await ImagePicker().pickVideo(
+        source: ImageSource.gallery);
+    return file;
+  }
+
 
   Future<void> refreshPost() async{
     posts.clear();
     await fetchPost();
+  }
+
+  void likedPost(int index) async{
+    print(posts[index].likedByMe );
+    if(posts[index].likedByMe == false){
+      await FirebaseFirestore.instance.collection("posts").doc(posts[index].postID).set({
+        "likes": FieldValue.arrayUnion([userModel.toJson()]),
+        "likedByMe": true
+      }, SetOptions(merge: true));
+      posts[index].likes!.add(userModel);
+      posts[index].likedByMe = true;
+    } else {
+      await FirebaseFirestore.instance.collection("posts").doc(posts[index].postID).set({
+        "likes": FieldValue.arrayRemove([userModel.toJson()]),
+        "likedByMe": false
+      }, SetOptions(merge: true));
+      posts[index].likes!.remove(userModel);
+      posts[index].likedByMe = false;
+    }
+
+    emit(HomeLoaded(posts: posts, datetime: DateTime.now()));
   }
 }

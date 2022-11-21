@@ -87,7 +87,8 @@ class _HomePageState extends State<HomePage> {
           return const Center(
             child: CircularProgressIndicator(),
           );
-        } else if (state is HomeLoaded) {
+        }
+        else if (state is HomeLoaded) {
           cubit.posts = state.posts;
           return ListView.separated(
             physics: const NeverScrollableScrollPhysics(),
@@ -103,15 +104,15 @@ class _HomePageState extends State<HomePage> {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading: CustomCircleAvatarStatus(
-                        user: cubit.posts[index].author!,
+                        user: state.posts[index].author!,
                         radius: 30,
                       ),
                       title: Text(
-                        cubit.posts[index].author!.fullName,
+                        state.posts[index].author!.fullName,
                         style: title.copyWith(color: black),
                       ),
                       subtitle: Text(
-                        cubit.posts[index].convertedCreateAt!,
+                        state.posts[index].convertedCreateAt!,
                         style: subtitle,
                       ),
                       trailing: IconButton(
@@ -124,43 +125,48 @@ class _HomePageState extends State<HomePage> {
                     ),
                     space,
                     Text(
-                      cubit.posts[index].caption!,
+                      state.posts[index].caption!,
                       overflow: TextOverflow.ellipsis,
                       maxLines: 5,
                       style: title,
                     ),
                     space,
-                    cubit.posts[index].type == "text"
+                    state.posts[index].type == "text"
                         ? Container()
-                        : (cubit.posts[index].type == "image"
-                            ? CachedNetworkImage(
-                                imageUrl: cubit.posts[index].uri ?? "",
-                                placeholder: (context, str) {
-                                  return AspectRatio(
-                                    aspectRatio:
-                                        cubit.posts[index].aspectRatio!,
-                                    child: Container(
-                                      color: grey,
-                                    ),
-                                  );
-                                },
-                              )
-                            : AspectRatio(
-                      aspectRatio: cubit.posts[index].aspectRatio!,
+                        : (state.posts[index].type == "image"
+                        ? CachedNetworkImage(
+                      imageUrl: state.posts[index].uri ?? "",
+                      placeholder: (context, str) {
+                        return AspectRatio(
+                          aspectRatio:
+                          state.posts[index].aspectRatio!,
+                          child: Container(
+                            color: grey,
+                          ),
+                        );
+                      },
+                    )
+                        : AspectRatio(
+                      aspectRatio: state.posts[index].aspectRatio!,
                       child: BetterPlayer(
-                        controller: cubit.posts[index].metadata!["controller"],
+                        controller: state.posts[index].metadata!["controller"],
                       ),
                     )),
                     Row(
                       children: [
                         ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(
+                          onPressed: () {
+                            cubit.likedPost(index);
+                          },
+                          icon: state.posts[index].likedByMe != null &&  state.posts[index].likedByMe == true ? Icon(
+                            Icons.favorite_outlined,
+                            color: red,
+                          ) : Icon(
                             Icons.favorite_border,
                             color: black,
                           ),
                           label: Text(
-                            cubit.posts[index].likes?.length.toString() ?? "0",
+                            state.posts[index].likes?.length.toString() ?? "0",
                             style: title,
                           ),
                           style: ElevatedButton.styleFrom(
@@ -173,7 +179,7 @@ class _HomePageState extends State<HomePage> {
                             color: black,
                           ),
                           label: Text(
-                            cubit.posts[index].comment?.length.toString() ??
+                            state.posts[index].comment?.length.toString() ??
                                 "0",
                             style: title,
                           ),
@@ -186,7 +192,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               );
             },
-            itemCount: cubit.posts.length,
+            itemCount: state.posts.length,
             separatorBuilder: (BuildContext context, int index) {
               return space;
             },
@@ -217,8 +223,13 @@ class _HomePageState extends State<HomePage> {
                 child: TextFormField(
                   onTap: () {
                     context.router.push(NewPostsPageRoute(
-                      user: globalCubit.currentUser
-                    ));
+                        user: globalCubit.currentUser
+                    )).then((value) async {
+                      value as Map;
+                      if (value["result"]) {
+                        await cubit.fetchPost();
+                      }
+                    });
                   },
                   readOnly: true,
                   decoration: const InputDecoration(
@@ -241,7 +252,22 @@ class _HomePageState extends State<HomePage> {
                       "Pictures",
                       style: subtitle.copyWith(color: black),
                     ),
-                    onPressed: () {}),
+                    onPressed: () {
+                      cubit.sendPicture().then((value) {
+                        if (value != null) {
+                          context.router.push(NewPostsPageRoute(
+                              user: globalCubit.currentUser,
+                              xFile: value,
+                              type: "image"
+                          )).then((value) async {
+                            value as Map;
+                            if (value["result"]) {
+                              await cubit.fetchPost();
+                            }
+                          });
+                        }
+                      });
+                    }),
               ),
               SizedBox(
                 width: size_10_w,
@@ -258,7 +284,22 @@ class _HomePageState extends State<HomePage> {
                       "Videos",
                       style: subtitle.copyWith(color: black),
                     ),
-                    onPressed: () {}),
+                    onPressed: () {
+                      cubit.sendVideo().then((value) {
+                        if (value != null) {
+                          context.router.push(NewPostsPageRoute(
+                              user: globalCubit.currentUser,
+                              xFile: value,
+                              type: "video"
+                          )).then((value) async {
+                            value as Map;
+                            if (value["result"]) {
+                              await cubit.fetchPost();
+                            }
+                          });
+                        }
+                      });
+                    }),
               )
             ],
           )
@@ -267,11 +308,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget customElevatedButton(
-      {required Widget text,
-      Widget? prefix,
-      Color? backgroundColor,
-      required void Function()? onPressed}) {
+  Widget customElevatedButton({required Widget text,
+    Widget? prefix,
+    Color? backgroundColor,
+    required void Function()? onPressed}) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
