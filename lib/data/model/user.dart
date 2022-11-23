@@ -18,9 +18,11 @@ class UserModel extends HiveObject{
   Map? friends;
   @HiveField(6)
   Map? request;
+  @HiveField(7)
+  String? fcmToken;
 
   UserModel(
-      [this._id, this._fullName, this._avatarURL, this._email, this._isOnline, this.friends, this.request]);
+      [this._id, this._fullName, this._avatarURL, this._email, this._isOnline, this.friends, this.request, this.fcmToken]);
 
   UserModel.fromJson(Map<dynamic, dynamic> json) {
     _id = json['_id'];
@@ -30,6 +32,7 @@ class UserModel extends HiveObject{
     _isOnline = json['_is_online'];
     friends = json['friends'];
     request = json['request'];
+    fcmToken = json['fcmToken'];
   }
 
   Map<String, dynamic> toJson() {

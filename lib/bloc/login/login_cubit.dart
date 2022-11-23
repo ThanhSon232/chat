@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:bloc/bloc.dart';
 import 'package:chat/bloc/global_cubit.dart';
@@ -5,6 +7,7 @@ import 'package:chat/data/model/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -75,6 +78,7 @@ class LoginCubit extends Cubit<LoginState> {
         var response =  await firestoreInstance
             .collection("users")
             .doc(user.user?.uid).get();
+
 
 
         UserModel userModel = UserModel.fromJson(response.data() ?? {});

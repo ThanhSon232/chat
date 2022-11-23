@@ -9,6 +9,7 @@ import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:intl/intl.dart';
 
 import '../../data/model/user.dart';
+import '../../notification.dart';
 
 part 'message_state.dart';
 
@@ -111,9 +112,9 @@ class MessageCubit extends Cubit<MessageState> {
           for (var element in event.docChanges) {
             if (element.type == DocumentChangeType.removed) {
               emit(MessageListDelete(message: element.doc.id));
-            } else if (element.type == DocumentChangeType.modified &&
+            }
+            else if (element.type == DocumentChangeType.modified &&
                 !element.doc.metadata.hasPendingWrites) {
-              print(element.doc.data());
               var data = element.doc.data() ?? {};
               if (data.containsKey("last_message")) {
                 var message = data["last_message"];
@@ -131,21 +132,6 @@ class MessageCubit extends Cubit<MessageState> {
                           userInfo["avatarURL"]
                       );
                     });
-
-                // if (parsedUser.id.isEmpty) {
-                //   var author = await firebaseFirestore
-                //       .collection("users")
-                //       .doc(guest.keys.first)
-                //       .get();
-                //
-                //   parsedUser = UserModel.fromJson(author.data() ?? {});
-                //   for (int i = 0; i < userList.length; i++) {
-                //     if (userList[i] == author.data()?["id"]) {
-                //       userList[i] = parsedUser;
-                //       emit(MessageOnlineUserLoaded(userList: userList));
-                //     }
-                //   }
-                // }
 
                 MessageTile messageTile = MessageTile(
                     id: element.doc.id,
@@ -170,11 +156,13 @@ class MessageCubit extends Cubit<MessageState> {
                 } else {
                   messageList.insert(0, messageTile);
                 }
+                NotificationService().showNotification(0, messageTile.user!.fullName, messageTile.message!.text, 10);
+
               }
             }
           }
           emit(MessageListLoaded(message: messageList));
-        });
+    });
     } catch (e) {
       if (e is FirebaseException) {
         streamSub?.cancel();

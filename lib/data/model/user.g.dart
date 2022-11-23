@@ -24,13 +24,14 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       fields[4] as bool?,
       (fields[5] as Map?)?.cast<dynamic, dynamic>(),
       (fields[6] as Map?)?.cast<dynamic, dynamic>(),
+      fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj._id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..writeByte(5)
       ..write(obj.friends)
       ..writeByte(6)
-      ..write(obj.request);
+      ..write(obj.request)
+      ..writeByte(7)
+      ..write(obj.fcmToken);
   }
 
   @override

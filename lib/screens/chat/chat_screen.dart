@@ -5,6 +5,7 @@ import 'package:better_player/better_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat/bloc/chat/chat_cubit.dart';
 import 'package:chat/data/model/user.dart';
+import 'package:chat/notification.dart';
 import 'package:chat/route.gr.dart';
 import 'package:chat/theme/dimension.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
@@ -79,6 +80,7 @@ class _ChatScreenState extends State<ChatScreen> {
               color: black,
             ),
             onPressed: () {
+              NotificationService().setIgnore("");
               context.router.pop();
             },
           ),

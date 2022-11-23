@@ -63,6 +63,8 @@ dependencies:
   intl: ^0.17.0
   flutter_svg: ^1.1.6
   avatar_stack: ^1.1.2
+  firebase_messaging: ^14.0.0
+  flutter_local_notifications: ^12.0.4
 
 dev_dependencies:
   auto_route_generator: ^5.0.3

@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 
 import '../../bloc/global_cubit.dart';
+import '../../notification.dart';
 import '../../theme/color.dart';
 import '../../theme/dimension.dart';
 import '../../widgets/custom_search.dart';
@@ -81,11 +82,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           backgroundColor: white,
           centerTitle: false,
           actions: [
-            IconButton(onPressed: (){
+            IconButton(onPressed: () async{
               context.router.push(SearchPageRoute(from: "home"));
             }, icon: const Icon(Icons.search, color: black,))
           ],
         ),
+        resizeToAvoidBottomInset: true,
         backgroundColor: grey_100,
         body: RefreshIndicator(
           onRefresh: () => cubit.refreshPost(),
@@ -223,8 +225,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                               void Function(void Function())
                                                   setState) {
                                             return Container(
-                                              padding: const EdgeInsets.all(10),
-                                              height: MediaQuery.of(context)
+
+                                              padding: EdgeInsets.only(
+                                                  bottom: MediaQuery.of(context).viewInsets.bottom),                                              height: MediaQuery.of(context)
                                                       .size
                                                       .height *
                                                   0.7,
@@ -415,15 +418,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               Expanded(
                 flex: 8,
                 child: TextFormField(
-                  onTap: () {
-                    context.router
-                        .push(NewPostsPageRoute(user: globalCubit.currentUser))
-                        .then((value) async {
-                      value as Map;
-                      if (value["result"]) {
-                        await cubit.fetchPost();
-                      }
-                    });
+                  onTap: () async {
+                    var value = await context.router
+                        .push(NewPostsPageRoute(user: globalCubit.currentUser));
+                    value as Map;
+                    if (value["result"]) {
+                      await cubit.fetchPost();
+                    }
                   },
                   readOnly: true,
                   decoration: const InputDecoration(

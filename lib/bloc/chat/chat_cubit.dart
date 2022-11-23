@@ -4,8 +4,10 @@ import 'dart:math';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:bloc/bloc.dart';
+import 'package:chat/notification.dart';
 import 'package:chat/theme/color.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:gallery_saver/gallery_saver.dart';
@@ -27,6 +29,7 @@ part 'chat_state.dart';
 class ChatCubit extends Cubit<ChatState> {
   late types.User user;
   late UserModel currentUser;
+  late UserModel guest;
   List<types.Message> messageList = [];
   TextEditingController msgController = TextEditingController();
   String chatID = "";
@@ -51,7 +54,9 @@ class ChatCubit extends Cubit<ChatState> {
       lastName: currentUser.fullName,
       imageUrl: currentUser.avatarURL,
     );
+    NotificationService().setIgnore(userModel.fullName);
     await checkUser(userModel, currentUser);
+    guest = userModel;
     await getMessage();
     emit(ChatInitial());
   }
@@ -134,12 +139,15 @@ class ChatCubit extends Cubit<ChatState> {
                     currentUser.id: {
                       "fullName": currentUser.fullName,
                       "avatarURL": currentUser.avatarURL,
-                      "id": currentUser.id
+                      "id": currentUser.id,
+                      "fcmToken": currentUser.fcmToken
                     },
                     userModel.id: {
                       "fullName": userModel.fullName,
                       "avatarURL": userModel.avatarURL,
-                      "id": userModel.id
+                      "id": userModel.id,
+                      "fcmToken": currentUser.fcmToken
+
                     }
                   }
                 }).then((value) => {chatID = value.id});
@@ -186,6 +194,17 @@ class ChatCubit extends Cubit<ChatState> {
             .doc(chatID)
             .update({"last_message": response.data(), "createAt": createAt, "seen": false});
       });
+
+      if(guest.fcmToken != null){
+        await FirebaseMessaging.instance.sendMessage(
+          data: {
+            "title": currentUser.fullName,
+            "body":  message.text
+          },
+            to: guest.fcmToken
+        );
+
+      }
 
 
     } catch (e) {

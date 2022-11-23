@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -83,7 +86,10 @@ class RegisterCubit extends Cubit<RegisterState> {
       firebaseInstance
           .createUserWithEmailAndPassword(
               email: emailController.text, password: passwordController.text)
-          .then((value) {
+          .then((value) async{
+        String? token;
+        token = await FirebaseMessaging.instance.getToken();
+
         //if create successfully
         firestoreInstance.collection("users").doc(value.user?.uid).set({
           "_id": value.user?.uid,
@@ -93,6 +99,7 @@ class RegisterCubit extends Cubit<RegisterState> {
               "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/640px-Image_created_with_a_mobile_phone.png",
           "_email": emailController.text,
           "_is_online": false,
+          "fcmToken": token,
           "friends": {
             "rK1BByZLgWaYgIa1OgQZhPK48ak1": {
               "_fullName": "Test",
