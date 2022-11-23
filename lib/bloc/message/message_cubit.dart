@@ -23,7 +23,7 @@ class MessageCubit extends Cubit<MessageState> {
 
   MessageCubit() : super(MessageInitial());
 
-  void init() async {
+  void init() async{
     emit(MessageLoading());
     var box = await Hive.openBox("box");
     currentUser = await box.get("user");
@@ -71,8 +71,14 @@ class MessageCubit extends Cubit<MessageState> {
 
         UserModel parsedUser = userList.firstWhere(
             (element) => element.id == guest.keys.first,
-            orElse: () => UserModel());
-        print(parsedUser.id);
+            orElse: (){
+              var userInfo = data["infor"][guest.keys.first];
+              return UserModel(
+                userInfo["id"],
+                userInfo["fullName"],
+                userInfo["avatarURL"]
+              );
+            });
 
         MessageTile messageTile = MessageTile(
             id: element.id,
@@ -116,24 +122,30 @@ class MessageCubit extends Cubit<MessageState> {
                     ? listUser.last
                     : listUser.first;
                 UserModel parsedUser = userList.firstWhere(
-                    (element) => element.id == guest.keys.first,
-                    orElse: () => UserModel());
+                        (element) => element.id == guest.keys.first,
+                    orElse: (){
+                      var userInfo = data["infor"][guest.keys.first];
+                      return UserModel(
+                          userInfo["id"],
+                          userInfo["fullName"],
+                          userInfo["avatarURL"]
+                      );
+                    });
 
-
-                if (parsedUser.id.isEmpty) {
-                  var author = await firebaseFirestore
-                      .collection("users")
-                      .doc(guest.keys.first)
-                      .get();
-
-                  parsedUser = UserModel.fromJson(author.data() ?? {});
-                  for (int i = 0; i < userList.length; i++) {
-                    if (userList[i] == author.data()?["id"]) {
-                      userList[i] = parsedUser;
-                      emit(MessageOnlineUserLoaded(userList: userList));
-                    }
-                  }
-                }
+                // if (parsedUser.id.isEmpty) {
+                //   var author = await firebaseFirestore
+                //       .collection("users")
+                //       .doc(guest.keys.first)
+                //       .get();
+                //
+                //   parsedUser = UserModel.fromJson(author.data() ?? {});
+                //   for (int i = 0; i < userList.length; i++) {
+                //     if (userList[i] == author.data()?["id"]) {
+                //       userList[i] = parsedUser;
+                //       emit(MessageOnlineUserLoaded(userList: userList));
+                //     }
+                //   }
+                // }
 
                 MessageTile messageTile = MessageTile(
                     id: element.doc.id,

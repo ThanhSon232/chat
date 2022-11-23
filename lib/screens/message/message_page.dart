@@ -111,13 +111,20 @@ class _MessagePageState extends State<MessagePage> {
         ],
       ),
       backgroundColor: white,
-      body: SingleChildScrollView(
-        padding:
-            EdgeInsets.symmetric(horizontal: size_15_w, vertical: size_10_h),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [searchBar(), spacing, onlineUserList(), messageList()],
+      body: BlocListener<GlobalCubit, GlobalState>(
+        listener: (context, state) {
+          if(state is GlobalNewUser){
+            cubit.currentUser = state.userModel;
+          }
+        },
+        child: SingleChildScrollView(
+          padding:
+              EdgeInsets.symmetric(horizontal: size_15_w, vertical: size_10_h),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [searchBar(), spacing, onlineUserList(), messageList()],
+          ),
         ),
       ),
     );
@@ -126,7 +133,7 @@ class _MessagePageState extends State<MessagePage> {
   Widget searchBar() {
     return CustomSearch(
       onTap: () {
-        context.router.pushNamed("/search-page");
+        context.router.push(SearchPageRoute(from: "chat"));
       },
       readOnly: true,
     );
@@ -188,7 +195,6 @@ class _MessagePageState extends State<MessagePage> {
             }
           },
           builder: (context, state) {
-            print(state);
             if (state is MessageListLoading || state is GlobalLoaded) {
               return const CircularProgressIndicator();
             } else if (state is MessageListLoaded) {
@@ -207,8 +213,8 @@ class _MessagePageState extends State<MessagePage> {
                             icon: Icons.delete,
                             label: 'Delete',
                             onPressed: (BuildContext context) async {
-                              await cubit
-                                  .deleteAllMessage(cubit.messageList[index]);
+                              // await cubit
+                              //     .deleteAllMessage(cubit.messageList[index]);
                             },
                           ),
                         ],
@@ -248,10 +254,12 @@ class _MessagePageState extends State<MessagePage> {
                                 child: Text(
                                   cubit.messageList[index].date ?? "",
                                   style: subtitle.copyWith(
-                                    fontSize: 12,
-                                    fontWeight: cubit.messageList[index].message?.status == types.Status.delivered
-                                        ? FontWeight.bold : FontWeight.w500
-                                  ),
+                                      fontSize: 12,
+                                      fontWeight: cubit.messageList[index]
+                                                  .message?.status ==
+                                              types.Status.delivered
+                                          ? FontWeight.bold
+                                          : FontWeight.w500),
                                   textAlign: TextAlign.end,
                                 ))
                           ],
@@ -263,13 +271,21 @@ class _MessagePageState extends State<MessagePage> {
                               child: Text(
                                 "${cubit.messageList[index].message?.author.lastName ?? ""}: ${cubit.messageList[index].message?.text ?? ""}",
                                 style: subtitle.copyWith(
-                                  color: cubit.messageList[index].message?.status == types.Status.delivered ? black : grey,
-                                    fontWeight: cubit.messageList[index].message?.status == types.Status.delivered
-                                        ? FontWeight.bold : FontWeight.w500),
+                                    color: cubit.messageList[index].message
+                                                ?.status ==
+                                            types.Status.delivered
+                                        ? black
+                                        : grey,
+                                    fontWeight: cubit.messageList[index].message
+                                                ?.status ==
+                                            types.Status.delivered
+                                        ? FontWeight.bold
+                                        : FontWeight.w500),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (cubit.messageList[index].message?.status == types.Status.delivered)
+                            if (cubit.messageList[index].message?.status ==
+                                types.Status.delivered)
                               const Expanded(
                                   flex: 1,
                                   child: CircleAvatar(

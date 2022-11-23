@@ -147,7 +147,7 @@ class NewPostCubit extends Cubit<NewPostState> {
     }
     var createAt = FieldValue.serverTimestamp();
     String id = generateRandomString(10);
-    await firebaseFirestore.collection("posts").add({
+    await firebaseFirestore.collection("posts").doc(id).set({
       'createAt': createAt,
       'type': type,
       'likes': [],

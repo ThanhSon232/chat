@@ -32,6 +32,7 @@ class GlobalCubit extends Cubit<GlobalState> {
     friends.forEach((key, value) {
         query.add(key);
     });
+    query.add(currentUser.id);
 
     try {
       listener = firebaseFirestore
@@ -45,15 +46,23 @@ class GlobalCubit extends Cubit<GlobalState> {
           if (element.type == DocumentChangeType.added) {
             allUserList.add(userModel);
           } else if (element.type == DocumentChangeType.modified) {
-            print(element.doc.data());
             var index = allUserList.indexWhere((e) => e.id == userModel.id);
             allUserList[index] = userModel;
+            if(userModel.id == currentUser.id){
+              currentUser = userModel;
+              emit(GlobalNewUser(userModel: userModel));
+            }
           } else if (element.type == DocumentChangeType.removed) {
             allUserList.removeWhere((e) => e.id == userModel.id);
+            if(userModel.id == currentUser.id){
+              currentUser = userModel;
+              emit(GlobalNewUser(userModel: userModel));
+            }
           }
         }
         emit(GlobalLoaded(allUser: allUserList));
       });
+
     } catch (e) {
       if (e is FirebaseException) {
         print(e.message);
@@ -62,5 +71,11 @@ class GlobalCubit extends Cubit<GlobalState> {
       }
       listener.cancel();
     }
+  }
+
+  Future<void> dispose() async{
+    onlineList = [];
+    allUserList = [];
+    await listener.cancel();
   }
 }

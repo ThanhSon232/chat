@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../bloc/global_cubit.dart';
+import '../../route.gr.dart';
 import '../../theme/color.dart';
 import '../../theme/style.dart';
 
@@ -66,16 +67,24 @@ class _SettingPageState extends State<SettingPage> {
               child: Column(
                 children: [
                   ListTile(
+                    leading: const Icon(Icons.person, color: black,),
+                    title: Text("Profile", style: title.copyWith(color: black, fontSize: size_18_sp),),
+                    onTap: () {
+                      context.router.push(ProfilePageRoute(currentUser: BlocProvider.of<GlobalCubit>(context).currentUser,user: BlocProvider.of<GlobalCubit>(context).currentUser));
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.logout, color: black,),
                     title: Text("Log out", style: title.copyWith(color: black, fontSize: size_18_sp),),
                     onTap: () async{
-                      await cubit.logout().then((value){
+                      await BlocProvider.of<GlobalCubit>(context).dispose();
+                      await cubit.logout().then((value) async {
                         context.router.pop().then((value){
                           context.router.replaceNamed("/login-screen");
                         });
                       });
                     },
-                  )
+                  ),
                 ],
               ),
             )

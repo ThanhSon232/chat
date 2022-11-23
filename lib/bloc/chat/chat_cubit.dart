@@ -26,6 +26,7 @@ part 'chat_state.dart';
 
 class ChatCubit extends Cubit<ChatState> {
   late types.User user;
+  late UserModel currentUser;
   List<types.Message> messageList = [];
   TextEditingController msgController = TextEditingController();
   String chatID = "";
@@ -38,36 +39,19 @@ class ChatCubit extends Cubit<ChatState> {
   OverlayEntry? overlayEntry;
   final ImagePicker _picker = ImagePicker();
   bool isEnd = false;
-  bool isShow = false;
-  bool isNotFriend = false;
-  bool isBlocked = false;
-  bool isBlockedByMe = false;
 
   ChatCubit() : super(ChatInitial());
 
   void init(UserModel userModel, String id) async {
     emit(ChatLoading());
     var box = await Hive.openBox("box");
-    UserModel currentUser = await box.get("user");
+    currentUser = await box.get("user");
     user = types.User(
       id: currentUser.id,
       lastName: currentUser.fullName,
       imageUrl: currentUser.avatarURL,
     );
-
-    // if (id.isNotEmpty) {
-    //   chatID = id;
-    //   Map friends = currentUser.friends ?? {};
-    //   if (currentUser.id == userModel.id) {
-    //     isBlocked = true;
-    //   } else {
-    //     if (friends.containsKey(userModel.id) == false) {
-    //       isNotFriend = true;
-    //     }
-    //   }
-    // } else {
-      await checkUser(userModel, currentUser);
-    // }
+    await checkUser(userModel, currentUser);
     await getMessage();
     emit(ChatInitial());
   }
@@ -80,7 +64,6 @@ class ChatCubit extends Cubit<ChatState> {
     UserModel currentUser = await box.get("user");
     currentUser.friends?.putIfAbsent(userModel.id, () => true);
     await box.put("user", currentUser);
-    isNotFriend = false;
     emit(ChatInitial());
   }
 
@@ -110,7 +93,6 @@ class ChatCubit extends Cubit<ChatState> {
       "blocked": false,
       "blockedBy": null
     },SetOptions(merge: true));
-    isBlocked = false;
     emit(ChatInitial());
   }
 
@@ -141,21 +123,6 @@ class ChatCubit extends Cubit<ChatState> {
             (QuerySnapshot querySnapshot) async {
               if (querySnapshot.docs.isNotEmpty) {
                 chatID = querySnapshot.docs.single.id;
-                Map friends = currentUser.friends ?? {};
-                if (currentUser.id == userModel.id) {
-                  isBlocked = true;
-                } else {
-                  if (friends.containsKey(userModel.id) == false) {
-                    isNotFriend = true;
-                  }
-                }
-                var data = querySnapshot.docs.first.data() as Map;
-                if(data["blocked"]){
-                  isBlocked = true;
-                  if(data["blockedBy"] == currentUser.id){
-                    isBlockedByMe = true;
-                  }
-                }
               } else {
                 await firebaseFirestore.collection("chat").add({
                   'users': [
@@ -163,19 +130,19 @@ class ChatCubit extends Cubit<ChatState> {
                     {currentUser.id: null}
                   ],
                   'createAt': FieldValue.serverTimestamp(),
-                  "blocked": false,
-                  "seen": false
+                  'infor' :{
+                    currentUser.id: {
+                      "fullName": currentUser.fullName,
+                      "avatarURL": currentUser.avatarURL,
+                      "id": currentUser.id
+                    },
+                    userModel.id: {
+                      "fullName": userModel.fullName,
+                      "avatarURL": userModel.avatarURL,
+                      "id": userModel.id
+                    }
+                  }
                 }).then((value) => {chatID = value.id});
-                isNotFriend = false;
-                await firebaseFirestore
-                    .collection("users")
-                    .doc(currentUser.id)
-                    .set({
-                  "friends": {userModel.id: true}
-                }, SetOptions(merge: true));
-                var box = await Hive.openBox("box");
-                currentUser.friends?.putIfAbsent(userModel.id, () => true);
-                await box.put("user", currentUser);
               }
             },
           );

@@ -1,5 +1,7 @@
 import 'package:better_player/better_player.dart';
 import 'package:bloc/bloc.dart';
+import 'package:chat/data/model/comment.dart';
+import 'package:chat/data/model/like.dart';
 import 'package:chat/data/model/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
@@ -26,10 +28,12 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> fetchPost() async{
     Map friends = userModel.friends ?? {};
+
     List query = [];
     friends.forEach((key, value) {
       query.add(key);
     });
+
     query.add(userModel.id);
     emit(HomeLoading());
     var response = await firebaseFirestore
@@ -40,6 +44,12 @@ class HomeCubit extends Cubit<HomeState> {
     for (var element in response.docs) {
       Post temp = Post.fromJson(element.data());
       temp.convertedCreateAt = temp.createAt!.toDate().toString();
+      for (var element in temp.likes!) {
+        if(element.id == userModel.id){
+          temp.likedByMe = true;
+          break;
+        }
+      }
       if (temp.type == "video") {
         temp.metadata = {
           "controller": BetterPlayerController(
@@ -88,23 +98,70 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   void likedPost(int index) async{
-    print(posts[index].likedByMe );
-    if(posts[index].likedByMe == false){
-      await FirebaseFirestore.instance.collection("posts").doc(posts[index].postID).set({
-        "likes": FieldValue.arrayUnion([userModel.toJson()]),
-        "likedByMe": true
-      }, SetOptions(merge: true));
-      posts[index].likes!.add(userModel);
+    Likes like = Likes.fromJson(
+        {
+          "id": userModel.id,
+          "avatarURL": userModel.avatarURL,
+          "fullName": userModel.fullName
+        }
+    );
+    if(!posts[index].likedByMe!){
+      firebaseFirestore.collection("posts").doc(posts[index].postID).update({
+        "likes": FieldValue.arrayUnion([
+          like.toJson()
+        ]),
+      });
+
+      posts[index].likes!.add(like);
       posts[index].likedByMe = true;
-    } else {
-      await FirebaseFirestore.instance.collection("posts").doc(posts[index].postID).set({
-        "likes": FieldValue.arrayRemove([userModel.toJson()]),
-        "likedByMe": false
-      }, SetOptions(merge: true));
-      posts[index].likes!.remove(userModel);
+
+      // if(like.id != posts[index].author!.id){
+      //   firebaseFirestore.collection("notification").doc(posts[index].author!.id).update({
+      //
+      //   });
+      // }
+
+    }
+    else {
+      firebaseFirestore.collection("posts").doc(posts[index].postID).update({
+        "likes": FieldValue.arrayRemove([
+          {
+            "id": userModel.id,
+            "avatarURL": userModel.avatarURL,
+            "fullName": userModel.fullName
+          }
+        ]),
+      });
+      for (var element in posts[index].likes!) {
+        if(element.id == userModel.id){
+          posts[index].likes!.remove(element);
+          break;
+        }
+      }
       posts[index].likedByMe = false;
     }
 
+
+    emit(HomeLoaded(posts: posts, datetime: DateTime.now()));
+  }
+
+  void commentPost(int index, String text) async{
+
+    Comment comment = Comment.fromJson(
+        {
+          "id": userModel.id,
+          "avatarURL": userModel.avatarURL,
+          "fullName": userModel.fullName,
+          "content": text,
+          "createAt": Timestamp.now()
+        }
+    );
+    firebaseFirestore.collection("posts").doc(posts[index].postID).update({
+      "comment": FieldValue.arrayUnion([
+        comment.toJson()
+      ]),
+    });
+    posts[index].comment!.add(comment);
     emit(HomeLoaded(posts: posts, datetime: DateTime.now()));
   }
 }

@@ -1,11 +1,11 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:avatar_stack/avatar_stack.dart';
 import 'package:better_player/better_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat/bloc/home/home_cubit.dart';
 import 'package:chat/route.gr.dart';
 import 'package:chat/theme/style.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
@@ -13,6 +13,7 @@ import 'package:flutter_svg/svg.dart';
 import '../../bloc/global_cubit.dart';
 import '../../theme/color.dart';
 import '../../theme/dimension.dart';
+import '../../widgets/custom_search.dart';
 
 class HomePage extends StatefulWidget implements AutoRouteWrapper {
   const HomePage({Key? key}) : super(key: key);
@@ -38,12 +39,14 @@ class HomePage extends StatefulWidget implements AutoRouteWrapper {
   }
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   late GlobalCubit globalCubit;
   late HomeCubit cubit;
+  TextEditingController controller = TextEditingController();
 
   @override
   void initState() {
+    WidgetsBinding.instance.addObserver(this);
     globalCubit = BlocProvider.of<GlobalCubit>(context);
     cubit = BlocProvider.of(context);
     cubit.init(globalCubit.currentUser);
@@ -51,26 +54,46 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      // await cubit.fetchPost();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final space = SizedBox(
       height: size_10_h,
     );
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "Facebook",
-          style: header,
+    return BlocListener<GlobalCubit, GlobalState>(
+      listener: (context, state) {
+        if (state is GlobalNewUser) {
+          cubit.userModel = state.userModel;
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Image.asset(
+            "assets/logo.png",
+            height: 40,
+          ),
+          elevation: 0,
+          backgroundColor: white,
+          centerTitle: false,
+          actions: [
+            IconButton(onPressed: (){
+              context.router.push(SearchPageRoute(from: "home"));
+            }, icon: const Icon(Icons.search, color: black,))
+          ],
         ),
-        elevation: 0,
-        backgroundColor: white,
-        centerTitle: false,
-      ),
-      backgroundColor: grey_100,
-      body: RefreshIndicator(
-        onRefresh: () => cubit.refreshPost(),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [userActions(), space, posts()],
+        backgroundColor: grey_100,
+        body: RefreshIndicator(
+          onRefresh: () => cubit.refreshPost(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [userActions(), space, posts()],
+            ),
           ),
         ),
       ),
@@ -87,8 +110,7 @@ class _HomePageState extends State<HomePage> {
           return const Center(
             child: CircularProgressIndicator(),
           );
-        }
-        else if (state is HomeLoaded) {
+        } else if (state is HomeLoaded) {
           cubit.posts = state.posts;
           return ListView.separated(
             physics: const NeverScrollableScrollPhysics(),
@@ -101,6 +123,11 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ListTile(
+                      onTap: () {
+                        context.router.push(ProfilePageRoute(
+                            currentUser: cubit.userModel,
+                            user: state.posts[index].author!));
+                      },
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading: CustomCircleAvatarStatus(
@@ -134,57 +161,224 @@ class _HomePageState extends State<HomePage> {
                     state.posts[index].type == "text"
                         ? Container()
                         : (state.posts[index].type == "image"
-                        ? CachedNetworkImage(
-                      imageUrl: state.posts[index].uri ?? "",
-                      placeholder: (context, str) {
-                        return AspectRatio(
-                          aspectRatio:
-                          state.posts[index].aspectRatio!,
-                          child: Container(
-                            color: grey,
-                          ),
-                        );
-                      },
-                    )
-                        : AspectRatio(
-                      aspectRatio: state.posts[index].aspectRatio!,
-                      child: BetterPlayer(
-                        controller: state.posts[index].metadata!["controller"],
-                      ),
-                    )),
+                            ? CachedNetworkImage(
+                                imageUrl: state.posts[index].uri ?? "",
+                                placeholder: (context, str) {
+                                  return AspectRatio(
+                                    aspectRatio:
+                                        state.posts[index].aspectRatio!,
+                                    child: Container(
+                                      color: grey,
+                                    ),
+                                  );
+                                },
+                              )
+                            : AspectRatio(
+                                aspectRatio: state.posts[index].aspectRatio!,
+                                child: BetterPlayer(
+                                  controller: state
+                                      .posts[index].metadata!["controller"],
+                                ),
+                              )),
                     Row(
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            cubit.likedPost(index);
-                          },
-                          icon: state.posts[index].likedByMe != null &&  state.posts[index].likedByMe == true ? Icon(
-                            Icons.favorite_outlined,
-                            color: red,
-                          ) : Icon(
-                            Icons.favorite_border,
-                            color: black,
+                        Expanded(
+                          flex: 6,
+                          child: Row(
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  cubit.likedPost(index);
+                                },
+                                icon: state.posts[index].likedByMe!
+                                    ? const Icon(
+                                        Icons.favorite_outlined,
+                                        color: red,
+                                      )
+                                    : const Icon(
+                                        Icons.favorite_border,
+                                        color: black,
+                                      ),
+                                label: Text(
+                                  state.posts[index].likes?.length.toString() ??
+                                      "0",
+                                  style: title,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: white, elevation: 0),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(16.0),
+                                            topRight: Radius.circular(16.0)),
+                                      ),
+                                      builder: (context) {
+                                        return StatefulBuilder(
+                                          builder: (BuildContext context,
+                                              void Function(void Function())
+                                                  setState) {
+                                            return Container(
+                                              padding: const EdgeInsets.all(10),
+                                              height: MediaQuery.of(context)
+                                                      .size
+                                                      .height *
+                                                  0.7,
+                                              child: SafeArea(
+                                                child: Column(
+                                                  children: [
+                                                    Text(
+                                                      "Comments",
+                                                      style: header,
+                                                    ),
+                                                    const Divider(),
+                                                    Expanded(
+                                                      child: ListView.builder(
+                                                        itemBuilder: (_, i) {
+                                                          return ListTile(
+                                                            leading:
+                                                                CircleAvatar(
+                                                              radius: 20,
+                                                              backgroundImage:
+                                                                  NetworkImage(cubit
+                                                                      .userModel
+                                                                      .avatarURL),
+                                                            ),
+                                                            title: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  state
+                                                                          .posts[
+                                                                              index]
+                                                                          .comment?[
+                                                                              i]
+                                                                          .fullName ??
+                                                                      "",
+                                                                  style: title.copyWith(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w700),
+                                                                ),
+                                                                Text(state
+                                                                        .posts[
+                                                                            index]
+                                                                        .comment?[
+                                                                            i]
+                                                                        .content ??
+                                                                    "")
+                                                              ],
+                                                            ),
+                                                            subtitle: Text(state
+                                                                    .posts[
+                                                                        index]
+                                                                    .comment?[i]
+                                                                    .createAt!
+                                                                    .toDate()
+                                                                    .toString() ??
+                                                                ""),
+                                                          );
+                                                        },
+                                                        itemCount: state
+                                                                .posts[index]
+                                                                .comment
+                                                                ?.length ??
+                                                            0,
+                                                      ),
+                                                    ),
+                                                    const Divider(),
+                                                    TextFormField(
+                                                      controller: controller,
+                                                      decoration:
+                                                          InputDecoration(
+                                                              hintText:
+                                                                  "Comment here",
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                              prefixIcon:
+                                                                  Padding(
+                                                                padding: const EdgeInsets
+                                                                        .symmetric(
+                                                                    horizontal:
+                                                                        8.0),
+                                                                child:
+                                                                    CircleAvatar(
+                                                                  backgroundImage:
+                                                                      NetworkImage(cubit
+                                                                          .userModel
+                                                                          .avatarURL),
+                                                                ),
+                                                              ),
+                                                              suffixIcon:
+                                                                  IconButton(
+                                                                icon: const Icon(
+                                                                    Icons.send),
+                                                                onPressed: () {
+                                                                  if (controller
+                                                                          .text !=
+                                                                      "") {
+                                                                    setState(
+                                                                        () {
+                                                                      cubit.commentPost(
+                                                                          index,
+                                                                          controller
+                                                                              .text);
+                                                                      controller
+                                                                          .clear();
+                                                                    });
+                                                                  }
+                                                                },
+                                                              )),
+                                                    )
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      });
+                                },
+                                icon: const Icon(
+                                  Icons.message_outlined,
+                                  color: black,
+                                ),
+                                label: Text(
+                                  state.posts[index].comment?.length
+                                          .toString() ??
+                                      "0",
+                                  style: title,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: white, elevation: 0),
+                              ),
+                            ],
                           ),
-                          label: Text(
-                            state.posts[index].likes?.length.toString() ?? "0",
-                            style: title,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: white, elevation: 0),
                         ),
-                        ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.message_outlined,
-                            color: black,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              context.router.push(LikePageRoute(
+                                  list: state.posts[index].likes!,
+                                  user: cubit.userModel));
+                            },
+                            child: AvatarStack(
+                              height: 30,
+                              avatars: [
+                                for (var n = 0;
+                                    n < state.posts[index].likes!.length;
+                                    n++)
+                                  NetworkImage(
+                                      state.posts[index].likes![n].avatarURL!),
+                              ],
+                            ),
                           ),
-                          label: Text(
-                            state.posts[index].comment?.length.toString() ??
-                                "0",
-                            style: title,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: white, elevation: 0),
                         ),
                       ],
                     )
@@ -222,9 +416,9 @@ class _HomePageState extends State<HomePage> {
                 flex: 8,
                 child: TextFormField(
                   onTap: () {
-                    context.router.push(NewPostsPageRoute(
-                        user: globalCubit.currentUser
-                    )).then((value) async {
+                    context.router
+                        .push(NewPostsPageRoute(user: globalCubit.currentUser))
+                        .then((value) async {
                       value as Map;
                       if (value["result"]) {
                         await cubit.fetchPost();
@@ -255,11 +449,12 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       cubit.sendPicture().then((value) {
                         if (value != null) {
-                          context.router.push(NewPostsPageRoute(
-                              user: globalCubit.currentUser,
-                              xFile: value,
-                              type: "image"
-                          )).then((value) async {
+                          context.router
+                              .push(NewPostsPageRoute(
+                                  user: globalCubit.currentUser,
+                                  xFile: value,
+                                  type: "image"))
+                              .then((value) async {
                             value as Map;
                             if (value["result"]) {
                               await cubit.fetchPost();
@@ -287,11 +482,12 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       cubit.sendVideo().then((value) {
                         if (value != null) {
-                          context.router.push(NewPostsPageRoute(
-                              user: globalCubit.currentUser,
-                              xFile: value,
-                              type: "video"
-                          )).then((value) async {
+                          context.router
+                              .push(NewPostsPageRoute(
+                                  user: globalCubit.currentUser,
+                                  xFile: value,
+                                  type: "video"))
+                              .then((value) async {
                             value as Map;
                             if (value["result"]) {
                               await cubit.fetchPost();
@@ -308,10 +504,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget customElevatedButton({required Widget text,
-    Widget? prefix,
-    Color? backgroundColor,
-    required void Function()? onPressed}) {
+  Widget customElevatedButton(
+      {required Widget text,
+      Widget? prefix,
+      Color? backgroundColor,
+      required void Function()? onPressed}) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(

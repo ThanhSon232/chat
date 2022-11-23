@@ -5,6 +5,7 @@ import 'package:better_player/better_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat/bloc/chat/chat_cubit.dart';
 import 'package:chat/data/model/user.dart';
+import 'package:chat/route.gr.dart';
 import 'package:chat/theme/dimension.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
 import 'package:flutter/cupertino.dart';
@@ -47,11 +48,11 @@ class _ChatScreenState extends State<ChatScreen> {
     cubit.init(widget.userModel, widget.chatID);
   }
 
-  @override
-  void deactivate() async {
-    await cubit.setSeen();
-    super.deactivate();
-  }
+  // @override
+  // void deactivate() async {
+  //   await cubit.setSeen();
+  //   super.deactivate();
+  // }
 
   @override
   void dispose() async{
@@ -96,6 +97,11 @@ class _ChatScreenState extends State<ChatScreen> {
               )
             ],
           ),
+          actions: [
+            IconButton(onPressed: (){
+              context.router.popAndPush(ProfilePageRoute(currentUser: cubit.currentUser,user: widget.userModel));
+            }, icon: const Icon(Icons.info_outline, color: blue,))
+          ],
         ),
         body: BlocBuilder<ChatCubit, ChatState>(
           builder: (context, state) {
@@ -301,160 +307,231 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget customBottomWidget() {
-    return cubit.isBlocked
-        ? Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-                width: MediaQuery.of(context).size.width,
-                height: size_200_h,
-                padding: const EdgeInsets.all(10),
-                margin: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                    color: grey_100, borderRadius: BorderRadius.circular(16)),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Row(
+          children: [
+            Flexible(
+                flex: 4,
+                child: Row(
                   children: [
-                    CustomCircleAvatarStatus(user: widget.userModel),
-                    SizedBox(
-                      height: size_5_h,
+                    IconButton(
+                      icon:
+                      const Icon(Icons.attach_file, color: blue),
+                      onPressed: () {},
                     ),
-                    Text(
-                      widget.userModel.fullName,
-                      style: header,
+                    IconButton(
+                        onPressed: () {
+                          cubit.openCameraSelector(context);
+                        },
+                        key: cubit.secondKey,
+                        icon: const Icon(
+                          Icons.camera_alt,
+                          color: blue,
+                        )),
+                    IconButton(
+                      key: cubit.key,
+                      icon: const Icon(Icons.perm_media_outlined,
+                          color: blue),
+                      onPressed: () {
+                        cubit.openMediaSelector(context);
+                      },
                     ),
-                    SizedBox(
-                      height: size_5_h,
-                    ),
-                    cubit.isBlockedByMe
-                        ? SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              child: const Text("Unblock"),
-                              onPressed: () async {
-                                await cubit.unblock();
-                              },
-                            ),
-                          )
-                        : Text(
-                            "Blocked",
-                            style: title,
-                          ),
                   ],
                 )),
-          )
-        : (cubit.isNotFriend
-            ? Align(
-                alignment: Alignment.topCenter,
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: size_200_h,
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: grey_100, borderRadius: BorderRadius.circular(16)),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      CustomCircleAvatarStatus(user: widget.userModel),
-                      SizedBox(
-                        height: size_5_h,
-                      ),
-                      Text(
-                        widget.userModel.fullName,
-                        style: header,
-                      ),
-                      SizedBox(
-                        height: size_5_h,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          TextButton(
-                              onPressed: () async {
-                                cubit.acceptButton(widget.userModel);
-                              },
-                              child: const Text("Accept")),
-                          TextButton(
-                              onPressed: () async {
-                                cubit.cancelButton(widget.userModel, context);
-                              },
-                              child: const Text("Block"))
-                        ],
-                      )
-                    ],
+            Flexible(
+                flex: 5,
+                child: TextFormField(
+                  controller: cubit.msgController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10),
+                    filled: true,
+                    hintText: "Type your message...",
+                    fillColor: grey_100,
+                    border: OutlineInputBorder(
+                        gapPadding: 0,
+                        borderRadius: BorderRadius.circular(16)),
                   ),
-                ),
-              )
-            : SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Row(
-                    children: [
-                      Flexible(
-                          flex: 4,
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.attach_file, color: blue),
-                                onPressed: () {},
-                              ),
-                              IconButton(
-                                  onPressed: () {
-                                    cubit.openCameraSelector(context);
-                                  },
-                                  key: cubit.secondKey,
-                                  icon: const Icon(
-                                    Icons.camera_alt,
-                                    color: blue,
-                                  )),
-                              IconButton(
-                                key: cubit.key,
-                                icon: const Icon(Icons.perm_media_outlined,
-                                    color: blue),
-                                onPressed: () {
-                                  cubit.openMediaSelector(context);
-                                },
-                              ),
-                            ],
-                          )),
-                      Flexible(
-                          flex: 5,
-                          child: TextFormField(
-                            controller: cubit.msgController,
-                            autofocus: true,
-                            decoration: InputDecoration(
-                              contentPadding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              filled: true,
-                              hintText: "Type your message...",
-                              fillColor: grey_100,
-                              border: OutlineInputBorder(
-                                  gapPadding: 0,
-                                  borderRadius: BorderRadius.circular(16)),
-                            ),
-                          )),
-                      Flexible(
-                          flex: 1,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.send,
-                              color: blue,
-                            ),
-                            onPressed: () async {
-                              if (cubit.msgController.text.isNotEmpty) {
-                                await cubit.sendMessage(types.PartialText(
-                                    text: cubit.msgController.text));
-                                cubit.msgController.clear();
-                              }
-                            },
-                          ))
-                    ],
+                )),
+            Flexible(
+                flex: 1,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.send,
+                    color: blue,
                   ),
-                ),
-              ));
+                  onPressed: () async {
+                    if (cubit.msgController.text.isNotEmpty) {
+                      await cubit.sendMessage(types.PartialText(
+                          text: cubit.msgController.text));
+                      cubit.msgController.clear();
+                    }
+                  },
+                ))
+          ],
+        ),
+      ),
+    );
   }
+
+  // Widget customBottomWidget() {
+  //   return cubit.isBlocked
+  //       ? Align(
+  //           alignment: Alignment.topCenter,
+  //           child: Container(
+  //               width: MediaQuery.of(context).size.width,
+  //               height: size_200_h,
+  //               padding: const EdgeInsets.all(10),
+  //               margin: const EdgeInsets.all(10),
+  //               decoration: BoxDecoration(
+  //                   color: grey_100, borderRadius: BorderRadius.circular(16)),
+  //               child: Column(
+  //                 mainAxisAlignment: MainAxisAlignment.center,
+  //                 crossAxisAlignment: CrossAxisAlignment.center,
+  //                 children: [
+  //                   CustomCircleAvatarStatus(user: widget.userModel),
+  //                   SizedBox(
+  //                     height: size_5_h,
+  //                   ),
+  //                   Text(
+  //                     widget.userModel.fullName,
+  //                     style: header,
+  //                   ),
+  //                   SizedBox(
+  //                     height: size_5_h,
+  //                   ),
+  //                   cubit.isBlockedByMe
+  //                       ? SizedBox(
+  //                           width: double.infinity,
+  //                           child: TextButton(
+  //                             child: const Text("Unblock"),
+  //                             onPressed: () async {
+  //                               await cubit.unblock();
+  //                             },
+  //                           ),
+  //                         )
+  //                       : Text(
+  //                           "Blocked",
+  //                           style: title,
+  //                         ),
+  //                 ],
+  //               )),
+  //         )
+  //       : (cubit.isNotFriend
+  //           ? Align(
+  //               alignment: Alignment.topCenter,
+  //               child: Container(
+  //                 width: MediaQuery.of(context).size.width,
+  //                 height: size_200_h,
+  //                 padding: const EdgeInsets.all(10),
+  //                 margin: const EdgeInsets.all(10),
+  //                 decoration: BoxDecoration(
+  //                     color: grey_100, borderRadius: BorderRadius.circular(16)),
+  //                 child: Column(
+  //                   mainAxisAlignment: MainAxisAlignment.center,
+  //                   crossAxisAlignment: CrossAxisAlignment.center,
+  //                   children: [
+  //                     CustomCircleAvatarStatus(user: widget.userModel),
+  //                     SizedBox(
+  //                       height: size_5_h,
+  //                     ),
+  //                     Text(
+  //                       widget.userModel.fullName,
+  //                       style: header,
+  //                     ),
+  //                     SizedBox(
+  //                       height: size_5_h,
+  //                     ),
+  //                     Row(
+  //                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  //                       crossAxisAlignment: CrossAxisAlignment.center,
+  //                       children: [
+  //                         TextButton(
+  //                             onPressed: () async {
+  //                               cubit.acceptButton(widget.userModel);
+  //                             },
+  //                             child: const Text("Accept")),
+  //                         TextButton(
+  //                             onPressed: () async {
+  //                               cubit.cancelButton(widget.userModel, context);
+  //                             },
+  //                             child: const Text("Block"))
+  //                       ],
+  //                     )
+  //                   ],
+  //                 ),
+  //               ),
+  //             )
+  //           : SafeArea(
+  //               child: Padding(
+  //                 padding: const EdgeInsets.all(10.0),
+  //                 child: Row(
+  //                   children: [
+  //                     Flexible(
+  //                         flex: 4,
+  //                         child: Row(
+  //                           children: [
+  //                             IconButton(
+  //                               icon:
+  //                                   const Icon(Icons.attach_file, color: blue),
+  //                               onPressed: () {},
+  //                             ),
+  //                             IconButton(
+  //                                 onPressed: () {
+  //                                   cubit.openCameraSelector(context);
+  //                                 },
+  //                                 key: cubit.secondKey,
+  //                                 icon: const Icon(
+  //                                   Icons.camera_alt,
+  //                                   color: blue,
+  //                                 )),
+  //                             IconButton(
+  //                               key: cubit.key,
+  //                               icon: const Icon(Icons.perm_media_outlined,
+  //                                   color: blue),
+  //                               onPressed: () {
+  //                                 cubit.openMediaSelector(context);
+  //                               },
+  //                             ),
+  //                           ],
+  //                         )),
+  //                     Flexible(
+  //                         flex: 5,
+  //                         child: TextFormField(
+  //                           controller: cubit.msgController,
+  //                           autofocus: true,
+  //                           decoration: InputDecoration(
+  //                             contentPadding:
+  //                                 const EdgeInsets.symmetric(horizontal: 10),
+  //                             filled: true,
+  //                             hintText: "Type your message...",
+  //                             fillColor: grey_100,
+  //                             border: OutlineInputBorder(
+  //                                 gapPadding: 0,
+  //                                 borderRadius: BorderRadius.circular(16)),
+  //                           ),
+  //                         )),
+  //                     Flexible(
+  //                         flex: 1,
+  //                         child: IconButton(
+  //                           icon: const Icon(
+  //                             Icons.send,
+  //                             color: blue,
+  //                           ),
+  //                           onPressed: () async {
+  //                             if (cubit.msgController.text.isNotEmpty) {
+  //                               await cubit.sendMessage(types.PartialText(
+  //                                   text: cubit.msgController.text));
+  //                               cubit.msgController.clear();
+  //                             }
+  //                           },
+  //                         ))
+  //                   ],
+  //                 ),
+  //               ),
+  //             ));
+  // }
 }

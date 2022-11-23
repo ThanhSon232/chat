@@ -51,42 +51,16 @@ class _PeopleScreenState extends State<PeopleScreen> {
         centerTitle: false,
         backgroundColor: white,
         elevation: 0,
-        // actions: [
-        //   IconButton(
-        //       onPressed: () {
-        //         showModalBottomSheet(
-        //             context: context,
-        //             isScrollControlled: true,
-        //             builder: (builder) {
-        //               return Container(
-        //                 height: MediaQuery.of(context).size.height * .95,
-        //                 color: Colors.transparent,
-        //                 child: Container(
-        //                     decoration: const BoxDecoration(
-        //                         color: Colors.white,
-        //                         borderRadius: BorderRadius.only(
-        //                             topLeft: Radius.circular(10.0),
-        //                             topRight: Radius.circular(10.0))),
-        //                     child: const Center(
-        //                       child: Text("This is a modal sheet"),
-        //                     )),
-        //               );
-        //             });
-        //       },
-        //       icon: const Icon(
-        //         Icons.add,
-        //         color: blue,
-        //       ))
-        // ],
       ),
       backgroundColor: white,
       body: BlocConsumer<GlobalCubit, GlobalState>(
-        listener: (context, state) {},
+        listener: (context, state) {
+
+        },
         builder: (context, state) {
           if (state is GlobalInitial) {
             return Container();
           } else if (state is GlobalLoaded) {
-            // print(state.allUser.length);
             var peopleList = state.allUser;
             return peopleList.isNotEmpty
                 ? ListView.separated(

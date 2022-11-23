@@ -94,7 +94,12 @@ class RegisterCubit extends Cubit<RegisterState> {
           "_email": emailController.text,
           "_is_online": false,
           "friends": {
-            "rK1BByZLgWaYgIa1OgQZhPK48ak1" : true
+            "rK1BByZLgWaYgIa1OgQZhPK48ak1": {
+              "_fullName": "Test",
+              "_id": "rK1BByZLgWaYgIa1OgQZhPK48ak1",
+              "_avatarURL":
+                  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/640px-Image_created_with_a_mobile_phone.png"
+            }
           }
         }).then((value) {
           context.router.pop();

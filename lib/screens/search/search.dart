@@ -1,4 +1,5 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:chat/bloc/global_cubit.dart';
 import 'package:chat/bloc/search/search_cubit.dart';
 import 'package:chat/theme/style.dart';
 import 'package:chat/widgets/custom_circle_avatar_status.dart';
@@ -12,7 +13,8 @@ import '../../theme/color.dart';
 import '../../theme/dimension.dart';
 
 class SearchPage extends StatefulWidget implements AutoRouteWrapper {
-  const SearchPage({Key? key}) : super(key: key);
+  final String from;
+  const SearchPage({required this.from,Key? key}) : super(key: key);
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -32,7 +34,7 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     cubit = BlocProvider.of(context);
-    cubit.init();
+    cubit.init(BlocProvider.of<GlobalCubit>(context).allUserList);
     super.initState();
   }
 
@@ -103,8 +105,12 @@ class _SearchPageState extends State<SearchPage> {
                     return ListTile(
                       onTap: () {
                         context.router.pop();
-                        context.router.push(ChatScreenRoute(
-                            userModel: suggestionList[index], chatID: ""));
+                        if(widget.from == "chat"){
+                          context.router.push(ChatScreenRoute(
+                              userModel: suggestionList[index], chatID: ""));
+                        } else {
+                          context.router.push(ProfilePageRoute(currentUser: BlocProvider.of<GlobalCubit>(context).currentUser, user: suggestionList[index]));
+                        }
                       },
                       leading:
                           CustomCircleAvatarStatus(user: suggestionList[index]),
@@ -141,8 +147,13 @@ class _SearchPageState extends State<SearchPage> {
                 return ListTile(
                   onTap: () {
                     context.router.pop();
-                    context.router.push(ChatScreenRoute(
-                        userModel: suggestionList[index], chatID: ""));
+                    if(widget.from == "chat"){
+                      context.router.push(ChatScreenRoute(
+                          userModel: suggestionList[index], chatID: ""));
+                    } else {
+                      context.router.push(ProfilePageRoute(currentUser: BlocProvider.of<GlobalCubit>(context).currentUser, user: suggestionList[index]));
+                    }
+
                   },
                   leading:
                       CustomCircleAvatarStatus(user: suggestionList[index]),

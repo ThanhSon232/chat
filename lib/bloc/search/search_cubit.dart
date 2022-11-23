@@ -22,22 +22,22 @@ class SearchCubit extends Cubit<SearchState> {
 
   SearchCubit() : super(SearchInitial());
 
-  void init() async {
+  void init(List<UserModel> allUserList) async {
     try {
       emit(SearchLoading());
       textEditingController.addListener(onSearchChanged);
 
-      var box = await Hive.openBox("box");
-      currentUser = await box.get("user");
-      List<UserModel> suggestionList = [];
-      Map friends = currentUser?.friends ?? {};
-      for(var element in friends.entries){
-        var userInfo =
-        await firebaseFirestore.collection("users").doc(element.key).get();
-        suggestionList.add(UserModel.fromJson(userInfo.data() ?? {}));
-      }
+      // var box = await Hive.openBox("box");
+      // currentUser = await box.get("user");
+      // List<UserModel> suggestionList = [];
+      // Map friends = currentUser?.friends ?? {};
+      // for(var element in friends.entries){
+      //   // var userInfo =
+      //   // await firebaseFirestore.collection("users").doc(element.key).get();
+      //   suggestionList.add(UserModel.fromJson(element.value));
+      // }
 
-      emit(SearchSuggestion(userList: suggestionList));
+      emit(SearchSuggestion(userList: allUserList));
 
 
 

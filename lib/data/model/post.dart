@@ -1,5 +1,8 @@
+import 'package:chat/data/model/comment.dart';
 import 'package:chat/data/model/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'like.dart';
 
 class Post {
   UserModel? author;
@@ -7,8 +10,8 @@ class Post {
   String? postID;
   Timestamp? createAt;
   String? convertedCreateAt;
-  List<UserModel>? likes;
-  List<String>? comment;
+  List<Likes>? likes;
+  List<Comment>? comment;
   String? caption;
   String? type;
   String? uri;
@@ -32,7 +35,6 @@ class Post {
         this.thumbnail,
         this.size,
         this.name,
-        this.likedByMe,
         this.aspectRatio});
 
   Post.fromJson(Map<String, dynamic> json) {
@@ -42,11 +44,17 @@ class Post {
     likedByMe = json['likedByMe'];
     createAt = json['createAt'];
     if (json['likes'] != null) {
-      likes = <UserModel>[];
+      likes = <Likes>[];
       json['likes'].forEach((v) {
-        likes!.add(UserModel.fromJson(v));
+        likes!.add(Likes.fromJson(v));
       });
-    }    comment = json['comment'].cast<String>();
+    }
+    if (json['comment'] != null) {
+      comment = <Comment>[];
+      json['comment'].forEach((v) {
+        comment!.add(Comment.fromJson(v));
+      });
+    }
     caption = json['caption'];
     type = json['type'];
     uri = json['uri'];
@@ -68,7 +76,10 @@ class Post {
     if (this.likes != null) {
       data['likes'] = this.likes!.map((v) => v.toJson()).toList();
     }
-    data['comment'] = this.comment;
+
+    if (this.comment != null) {
+      data['comment'] = this.comment!.map((v) => v.toJson()).toList();
+    }
     data['caption'] = this.caption;
     data['type'] = this.type;
     data['uri'] = this.uri;

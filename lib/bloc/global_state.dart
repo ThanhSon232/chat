@@ -20,3 +20,15 @@ class GlobalLoaded extends GlobalState{
     allUser
   ];
 }
+
+class GlobalNewUser extends GlobalState{
+  final UserModel userModel;
+
+  GlobalNewUser({required this.userModel});
+
+
+  @override
+  List<Object> get props => [
+    userModel
+  ];
+}
